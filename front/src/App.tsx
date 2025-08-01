@@ -10,26 +10,89 @@ import SearchListPage from "./pages/SearchListPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import { AnalysisResultPage } from "./pages/AnalysisResultPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
+import { useAuthActions } from "./stores/authStore";
 import { setupGlobalErrorHandler } from "./utils/errorUtils";
 
 export default function App(): JSX.Element {
+  const { checkAuthStatus } = useAuthActions();
+
   useEffect(() => {
     // 전역 에러 핸들러 설정
     setupGlobalErrorHandler();
-  }, []);
+    
+    // 앱 시작 시 인증 상태 확인
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
   return (
     <ErrorBoundary>
       <Router>
         <Routes>
+          {/* 공개 라우트 */}
           <Route path="/" element={<MainPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/result/:id" element={<ResultPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/search" element={<SearchListPage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/analysis-result/:productId" element={<AnalysisResultPage />} />
+          
+          {/* 보호된 라우트 (로그인 필요) */}
+          <Route 
+            path="/result/:id" 
+            element={
+              <ProtectedRoute>
+                <ResultPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/search" 
+            element={
+              <ProtectedRoute>
+                <SearchListPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/analysis" 
+            element={
+              <ProtectedRoute>
+                <AnalysisPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/analysis-result/:productId" 
+            element={
+              <ProtectedRoute>
+                <AnalysisResultPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 관리자 전용 라우트 */}
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            } 
+          />
+          
+          {/* 404 페이지 */}
+          <Route 
+            path="*" 
+            element={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
+                  <p className="text-gray-600 mb-4">페이지를 찾을 수 없습니다.</p>
+                  <a href="/" className="text-blue-600 hover:underline">
+                    홈으로 돌아가기
+                  </a>
+                </div>
+              </div>
+            } 
+          />
         </Routes>
       </Router>
     </ErrorBoundary>

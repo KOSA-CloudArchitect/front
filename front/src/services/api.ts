@@ -6,8 +6,9 @@ import {
   Product,
   ApiErrorResponse 
 } from '../types';
+import { authService } from './authService';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
 
 export class ApiError extends Error {
   constructor(message: string, public status?: number, public code?: string) {
@@ -20,18 +21,56 @@ class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
+    // 인증 토큰 자동 추가
+    const accessToken = authService.getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    };
+    
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
     try {
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
+        headers,
+        credentials: 'include', // 쿠키 포함 (Refresh Token용)
         ...options,
       });
 
       // response가 undefined이거나 null인 경우 처리
       if (!response) {
         throw new ApiError('네트워크 응답을 받을 수 없습니다.');
+      }
+
+      // 401 Unauthorized 처리 (토큰 만료 등)
+      if (response.status === 401 && accessToken) {
+        try {
+          // 토큰 갱신 시도
+          await authService.refreshToken();
+          
+          // 갱신된 토큰으로 재요청
+          const newAccessToken = authService.getAccessToken();
+          if (newAccessToken) {
+            headers['Authorization'] = `Bearer ${newAccessToken}`;
+            
+            const retryResponse = await fetch(url, {
+              headers,
+              credentials: 'include',
+              ...options,
+            });
+            
+            if (retryResponse.ok) {
+              return await retryResponse.json();
+            }
+          }
+        } catch (refreshError) {
+          // 토큰 갱신 실패 시 로그아웃 처리
+          authService.clearTokens();
+          window.location.href = '/login';
+          throw new ApiError('인증이 만료되었습니다. 다시 로그인해주세요.', 401, 'TOKEN_EXPIRED');
+        }
       }
 
       if (!response.ok) {

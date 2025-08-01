@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";   
 import {
   Search,
-  Menu,
-  User,
   Share,
   MessageCircle,
   BookOpen,
@@ -31,6 +29,7 @@ import CategoryMenu from "./CategoryMenu";
 import { motion } from "framer-motion";
 import CategoryList from "./CategoryList";
 import SubcategoryList from "./SubcategoryList";
+import NavBar from "../components/NavBar";
 
 // 카테고리 아이콘 클릭/탭 효과를 180ms 동안 유지하는 컴포넌트
 function CategoryItem({ icon, label, onClick }) {
@@ -58,14 +57,7 @@ function CategoryItem({ icon, label, onClick }) {
 export default function MainPage() {
   const [search, setSearch] = useState("");
   const [categoryPage, setCategoryPage] = useState(0);
-  const [showAuthPopover, setShowAuthPopover] = useState(false);
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user"));
-    } catch {
-      return null;
-    }
-  });
+
   const navigate = useNavigate();
   const [showDrawer, setShowDrawer] = useState(false);
   // 자동완성/추천/최근 검색 상태
@@ -97,7 +89,6 @@ export default function MainPage() {
 
   // 최근 검색어 추가 함수
   const addRecentSearch = (keyword) => {
-    if (!user) return;
     let updated = [keyword, ...recentSearches.filter(k => k !== keyword)].slice(0, 5);
     setRecentSearches(updated);
     localStorage.setItem("recentSearches", JSON.stringify(updated));
@@ -129,28 +120,7 @@ export default function MainPage() {
     dragStartX = null;
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    setShowAuthPopover(false);
-    setUser(null);
-    alert("로그아웃 되었습니다.");
-    navigate("/");
-  };
 
-  // 로그인/회원가입 후 user 상태 갱신을 위해 window 이벤트 리스너 추가
-  // (다른 탭에서 로그인/로그아웃 시 동기화)
-  useEffect(() => {
-    const syncUser = () => {
-      try {
-        setUser(JSON.parse(localStorage.getItem("user")));
-      } catch {
-        setUser(null);
-      }
-    };
-    syncUser(); // 마운트 시 한 번 실행
-    window.addEventListener("storage", syncUser);
-    return () => window.removeEventListener("storage", syncUser);
-  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -270,51 +240,7 @@ export default function MainPage() {
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white shadow">
-        <Menu size={28} className="cursor-pointer text-blue-600" onClick={() => setShowDrawer(true)} />
-        <span className="text-xl font-bold text-blue-600">KOSA</span>
-        <div className="relative">
-          <User
-            size={28}
-            className="cursor-pointer text-blue-600"
-            onClick={() => setShowAuthPopover((v) => !v)}
-          />
-          {showAuthPopover && (
-            <div className="absolute right-0 mt-2 w-44 bg-white rounded shadow p-4 z-20">
-              {user ? (
-                <>
-                  <div className="mb-2 text-gray-800 font-semibold">{user.userId}님</div>
-                  <button
-                    className="w-full text-left py-1 px-2 hover:bg-gray-100 rounded"
-                    onClick={() => { setShowAuthPopover(false); navigate('/mypage'); }}
-                  >
-                    마이페이지
-                  </button>
-                  <button
-                    className="w-full text-left py-1 px-2 hover:bg-gray-100 rounded"
-                    onClick={handleLogout}
-                  >
-                    로그아웃
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    className="w-full text-left py-1 px-2 hover:bg-gray-100 rounded"
-                    onClick={() => { setShowAuthPopover(false); navigate('/login'); }}
-                  >
-                    로그인
-                  </button>
-                  <button
-                    className="w-full text-left py-1 px-2 hover:bg-gray-100 rounded"
-                    onClick={() => { setShowAuthPopover(false); navigate('/signup'); }}
-                  >
-                    회원가입
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+      <NavBar onMenuClick={() => setShowDrawer(true)} />
         </div>
       </div>
 

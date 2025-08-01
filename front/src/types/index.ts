@@ -77,11 +77,60 @@ export interface SentimentPieChartProps {
   negative?: number;
 }
 
+// 인증 관련 타입
+export interface User {
+  id: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  role?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  data: {
+    user: User;
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+  };
+  message: string;
+}
+
+export interface RefreshTokenResponse {
+  success: boolean;
+  data: {
+    user: User;
+    accessToken: string;
+    tokenType: string;
+    expiresIn: number;
+  };
+  message: string;
+}
+
 // API 에러 인터페이스 (서버 응답용)
 export interface ApiErrorResponse {
+  success: false;
+  error: string;
   message: string;
-  code?: string;
-  status?: number;
+  details?: Array<{
+    field: string;
+    message: string;
+    value: any;
+  }>;
 }
 
 // WebSocket 분석 데이터 타입 (별칭)

@@ -1,6 +1,6 @@
 # KOSA Backend
 
-리뷰 분석 서버 연동 및 API 게이트웨이 (Redis 캐싱 포함)
+리뷰 분석 서버 연동 및 API 게이트웨이 (JWT 인증, Redis 캐싱 포함)
 
 ## 설치 및 실행
 
@@ -103,6 +103,177 @@ GET /api/analyze/cache/stats
 
 # 특정 상품 캐시 무효화
 DELETE /api/analyze/cache/{productId}
+```
+
+## 인증 시스템
+
+### JWT 기반 인증
+
+KOSA 백엔드는 JWT(JSON Web Token) 기반의 인증 시스템을 사용합니다.
+
+#### 토큰 구조
+
+- **Access Token**: 15분 만료, API 요청 시 사용
+- **Refresh Token**: 7일 만료, Access Token 갱신용, HttpOnly 쿠키로 저장
+
+#### 인증 API
+
+##### 회원가입
+
+```
+POST /api/auth/register
+```
+
+**요청 본문:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPassword123!",
+  "confirmPassword": "StrongPassword123!",
+  "role": "user"
+}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "role": "user",
+      "createdAt": "2023-05-01T12:00:00Z",
+      "isActive": true
+    },
+    "message": "회원가입이 완료되었습니다."
+  }
+}
+```
+
+##### 로그인
+
+```
+POST /api/auth/login
+```
+
+**요청 본문:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPassword123!"
+}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "role": "user"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 900
+  },
+  "message": "로그인 성공"
+}
+```
+
+##### 토큰 갱신
+
+```
+POST /api/auth/refresh
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "role": "user"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 900
+  },
+  "message": "토큰 갱신 성공"
+}
+```
+
+##### 로그아웃
+
+```
+POST /api/auth/logout
+Authorization: Bearer {accessToken}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "message": "로그아웃되었습니다."
+}
+```
+
+##### 현재 사용자 정보
+
+```
+GET /api/auth/me
+Authorization: Bearer {accessToken}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "role": "user",
+      "createdAt": "2023-05-01T12:00:00Z",
+      "isActive": true
+    }
+  }
+}
+```
+
+#### 보안 기능
+
+- **Rate Limiting**: IP별 요청 제한
+- **로그인 실패 제한**: 5회 실패 시 15분 차단
+- **비밀번호 강도 검증**: 대소문자, 숫자, 특수문자 포함 8자 이상
+- **Refresh Token 관리**: Redis 기반 토큰 저장 및 무효화
+- **IP 차단**: 비정상적인 접근 패턴 감지 시 자동 차단
+
+#### 미들웨어 사용법
+
+```javascript
+const { authenticateToken, authorize } = require('./middleware/auth');
+
+// 인증 필요한 라우트
+app.get('/api/protected', authenticateToken, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// 관리자 권한 필요한 라우트
+app.get('/api/admin', authenticateToken, authorize(['admin']), (req, res) => {
+  res.json({ message: 'Admin only' });
+});
 ```
 
 ## API 문서
@@ -311,6 +482,15 @@ npm test -- --coverage
 ```
 
 ## 환경 변수
+
+### JWT 설정
+
+```bash
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=15m                    # Access Token 만료 시간
+JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-this-in-production
+JWT_REFRESH_EXPIRES_IN=7d             # Refresh Token 만료 시간
+```
 
 ### Redis 설정
 

@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Kafka } = require('kafkajs');
@@ -14,6 +15,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const productRouter = require('./routes/product');
 const categoryRouter = require('./routes/category');
 const analyzeRouter = require('./routes/analyze');
+const authRouter = require('./routes/auth');
 
 // Kafka 클라이언트 설정
 const kafka = new Kafka({
@@ -67,10 +69,10 @@ const io = socketIo(server, {
 // socket.io 인스턴스를 app에 등록
 app.set('io', io);
 
-// 임시 사용자 데이터 (메모리)
-const users = [];
+// JWT 기반 인증 시스템으로 대체됨
 
 app.use(express.json());
+app.use(cookieParser());
 
 // 헬스 체크 엔드포인트
 app.get('/health', (req, res) => {
@@ -169,6 +171,10 @@ app.use(express.static('public'));
 // 라우터 설정
 console.log('🔄 라우터 설정 중...');
 try {
+  console.log('🛣️ /api/auth 라우트 등록 시도 중...');
+  app.use('/api/auth', authRouter);
+  console.log('✅ /api/auth 라우트 등록 성공');
+
   console.log('🛣️ /api/products 라우트 등록 시도 중...');
   app.use('/api/products', productRouter);
   console.log('✅ /api/products 라우트 등록 성공');
@@ -346,25 +352,7 @@ app.post('/api/analyze/callback', async (req, res) => {
   }
 });
 
-// 회원가입
-app.post('/api/signup', (req, res) => {
-  const { userId, password, email } = req.body;
-  if (users.find(u => u.userId === userId)) {
-    return res.status(409).json({ message: '이미 존재하는 아이디입니다.' });
-  }
-  users.push({ userId, password, email });
-  res.json({ message: '회원가입 성공' });
-});
-
-// 로그인
-app.post('/api/login', (req, res) => {
-  const { userId, password } = req.body;
-  const user = users.find(u => u.userId === userId && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
-  }
-  res.json({ message: '로그인 성공', userId: user.userId });
-});
+// 인증 관련 엔드포인트는 /api/auth 라우터로 이동됨
 
 // 서버 시작
 async function startServer() {
