@@ -19,7 +19,13 @@
     "db:seed": "node scripts/seed.js",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "prisma:generate": "npx prisma generate",
-    "prisma:studio": "npx prisma studio"
+    "prisma:studio": "npx prisma studio",
+    "kafka:start": "docker-compose -f docker-compose.kafka.yml up -d",
+    "kafka:stop": "docker-compose -f docker-compose.kafka.yml down",
+    "kafka:restart": "npm run kafka:stop && npm run kafka:start",
+    "kafka:logs": "docker-compose -f docker-compose.kafka.yml logs -f",
+    "kafka:init-topics": "node scripts/init-kafka-topics.js",
+    "kafka:setup": "npm run kafka:start && sleep 30 && npm run kafka:init-topics"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
