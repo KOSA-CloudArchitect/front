@@ -11,7 +11,15 @@
     "test:watch": "jest --watch",
     "test:cache": "jest services/__tests__/cacheService.test.js",
     "test:integration": "jest __tests__/cache-integration.test.js",
-    "benchmark:cache": "node scripts/cache-benchmark.js"
+    "benchmark:cache": "node scripts/cache-benchmark.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:migrate:deploy": "node scripts/migrate.js deploy",
+    "db:migrate:reset": "node scripts/migrate.js reset",
+    "db:migrate:check": "node scripts/migrate.js check",
+    "db:seed": "node scripts/seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "prisma:generate": "npx prisma generate",
+    "prisma:studio": "npx prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
