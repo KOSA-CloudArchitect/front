@@ -1,7 +1,7 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
-import MainPage from "./pages/mainpage";
+import MainPage from "./pages/MainPage";
 import LoginPage from "./pages/LoginPage";  
 import SignupPage from "./pages/SignupPage";
 import ResultPage from "./pages/ResultPage";

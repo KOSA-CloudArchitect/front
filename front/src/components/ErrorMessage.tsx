@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, RefreshCw, Home, MessageCircle, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, RefreshCw, Home, MessageCircle, Wifi, WifiOff, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export type ErrorType = 'network' | 'server' | 'validation' | 'timeout' | 'unknown';
@@ -8,16 +8,20 @@ interface ErrorMessageProps {
   message: string;
   type?: ErrorType;
   onRetry?: () => void;
+  onClose?: () => void;
   showHomeButton?: boolean;
   showSupportButton?: boolean;
+  className?: string;
 }
 
 export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   message,
   type = 'unknown',
   onRetry,
+  onClose,
   showHomeButton = true,
   showSupportButton = false,
+  className = '',
 }) => {
   const navigate = useNavigate();
 
@@ -98,10 +102,20 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   };
 
   return (
-    <div className={`${getBgColor()} border rounded-lg p-6`}>
+    <div className={`${getBgColor()} border rounded-lg p-6 ${className}`}>
       <div className="flex items-start gap-3">
         {getErrorIcon()}
         <div className="flex-1">
+          {onClose && (
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <h3 className={`text-lg font-medium ${getTextColor()} mb-2`}>
             {getErrorTitle()}
           </h3>
