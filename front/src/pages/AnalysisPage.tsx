@@ -2,17 +2,20 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import NavBar from "../components/NavBar";
 import BottomBar from "../components/BottomBar";
+import { RealtimeProgressIndicator } from "../components/RealtimeProgressIndicator";
+import { RealtimeEmotionCards } from "../components/RealtimeEmotionCards";
+import { RealtimeAnalysisChart } from "../components/RealtimeAnalysisChart";
 import { 
   AnalysisStatus, 
   WebSocketAnalysisEvent,
 } from "../types";
 import { apiService, ApiError } from "../services/api";
-import { webSocketService } from "../services/websocket";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { useRealtimeActions } from "../stores/realtimeAnalysisStore";
 
 export default function AnalysisPage(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
-  const [progress, setProgress] = useState<number>(0);
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -24,6 +27,10 @@ export default function AnalysisPage(): JSX.Element {
       : new URLSearchParams(location.search).get("productId") || ""
   );
   const productId = productIdRef.current;
+
+  // WebSocket 훅 사용
+  const { isConnected } = useWebSocket({ productId });
+  const { reset } = useRealtimeActions();
 
   // 분석 상태 확인 및 요청 함수
   const checkAndStartAnalysis = useCallback(async (): Promise<void> => {
@@ -44,7 +51,6 @@ export default function AnalysisPage(): JSX.Element {
           setError(statusData.error || "분석에 실패했습니다.");
         } else {
           // 진행 중 상태
-          setProgress(statusData.progress || 0);
           setEstimatedTime(statusData.estimatedTime || null);
         }
       } catch (err) {
@@ -62,36 +68,26 @@ export default function AnalysisPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [productId, navigate, isDummy]);
+  }, [productId, navigate, isDummy]); // 필요한 의존성만 포함
 
-  // 소켓 연결 및 분석 시작
+  // 분석 시작 및 정리
   useEffect(() => {
     if (!productId) {
       navigate("/");
       return;
     }
 
-    // WebSocket 구독
-    const unsubscribe = webSocketService.subscribeToAnalysis(productId, (data: WebSocketAnalysisEvent) => {
-      if (data.status === "completed") {
-        navigate(`/result/${productId}`);
-      } else if (data.status === "failed") {
-        setError(data.error || "분석에 실패했습니다.");
-      } else if (data.status === "processing") {
-        setProgress(data.progress || 0);
-        setEstimatedTime(data.progress ? Math.round((100 - data.progress) * 2) : null);
-      }
-    });
+    // 스토어 초기화
+    reset();
 
     // 분석 시작
     checkAndStartAnalysis();
 
     return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
+      // 컴포넌트 언마운트 시 스토어 정리
+      reset();
     };
-  }, [productId, checkAndStartAnalysis, navigate]);
+  }, [productId]); // 의존성을 최소화
 
   // 로딩 상태 처리
   if (loading) {
@@ -132,27 +128,39 @@ export default function AnalysisPage(): JSX.Element {
   // 정상 분석 진행 화면
   return (
     <>
-      <NavBar title="KOSA" />
-      <div className="max-w-2xl mx-auto p-4 bg-gray-100 min-h-screen pt-16 pb-24 flex flex-col items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">리뷰 분석 중입니다</h2>
-          <p className="text-gray-600 mb-6">
-            잠시만 기다려주세요...
-            {estimatedTime && (
-              <>
-                <br />
-                예상 소요 시간: 약 {estimatedTime}초
-              </>
-            )}
-          </p>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-            <div
-              className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            ></div>
+      <NavBar title="실시간 리뷰 분석" />
+      <div className="max-w-4xl mx-auto p-4 bg-gray-100 min-h-screen pt-16 pb-24">
+        <div className="space-y-6">
+          {/* 진행 상황 표시 */}
+          <RealtimeProgressIndicator />
+          
+          {/* 실시간 차트와 감정 카드를 나란히 배치 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RealtimeAnalysisChart />
+            <RealtimeEmotionCards />
           </div>
-          <p className="text-sm text-gray-500">진행률: {progress}%</p>
+          
+          {/* 연결 상태 정보 */}
+          {!isConnected && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                <span className="font-medium">서버 연결을 재시도하는 중...</span>
+              </div>
+              <p className="text-sm text-yellow-700 mt-1">
+                네트워크 연결을 확인하고 잠시 후 다시 시도해주세요.
+              </p>
+            </div>
+          )}
+          
+          {/* 예상 시간 표시 */}
+          {estimatedTime && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="text-blue-800">
+                예상 완료 시간: 약 {estimatedTime}초
+              </p>
+            </div>
+          )}
         </div>
       </div>
       <BottomBar />

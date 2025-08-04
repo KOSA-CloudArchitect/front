@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, Check, X } from 'lucide-react';
-import { useAuthActions, useAuthLoading, useAuthError } from '../../stores/authStore';
+import { useAuthRegister, useAuthClearError, useAuthLoading, useAuthError } from '../../stores/authStore';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ErrorMessage } from '../ErrorMessage';
 
@@ -40,7 +40,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({
 
   const isLoading = useAuthLoading();
   const error = useAuthError();
-  const { register, clearError } = useAuthActions();
+  const register = useAuthRegister();
+  const clearError = useAuthClearError();
 
   // 에러 초기화
   useEffect(() => {

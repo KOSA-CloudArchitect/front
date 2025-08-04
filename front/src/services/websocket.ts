@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
-import { WebSocketAnalysisEvent } from '../types';
+import { WebSocketAnalysisEvent, RealtimeAnalysisEvent } from '../types';
 
-const WS_URL = process.env.REACT_APP_WS_URL || '';
+const WS_URL = process.env.REACT_APP_WS_URL || 'wss://kosa-backend-879200699978.asia-northeast3.run.app';
 
 export class WebSocketService {
   private socket: Socket | null = null;
@@ -16,6 +16,7 @@ export class WebSocketService {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      timeout: 20000,
     });
 
     this.socket.on('connect', () => {
@@ -45,6 +46,60 @@ export class WebSocketService {
     // 구독 해제 함수 반환
     return () => {
       socket.off(eventName, callback);
+    };
+  }
+
+  // 실시간 분석 이벤트 구독 (새로운 메서드)
+  subscribeToRealtimeAnalysis(
+    productId: string,
+    callbacks: {
+      onStatusUpdate?: (data: any) => void;
+      onEmotionCard?: (data: any) => void;
+      onChartUpdate?: (data: any) => void;
+      onComplete?: (data: any) => void;
+      onError?: (data: any) => void;
+    }
+  ): () => void {
+    const socket = this.connect();
+    
+    // 각 이벤트 타입별 구독
+    if (callbacks.onStatusUpdate) {
+      socket.on(`analysis:status:${productId}`, callbacks.onStatusUpdate);
+    }
+    
+    if (callbacks.onEmotionCard) {
+      socket.on(`analysis:emotion:${productId}`, callbacks.onEmotionCard);
+    }
+    
+    if (callbacks.onChartUpdate) {
+      socket.on(`analysis:chart:${productId}`, callbacks.onChartUpdate);
+    }
+    
+    if (callbacks.onComplete) {
+      socket.on(`analysis:complete:${productId}`, callbacks.onComplete);
+    }
+    
+    if (callbacks.onError) {
+      socket.on(`analysis:error:${productId}`, callbacks.onError);
+    }
+    
+    // 구독 해제 함수 반환
+    return () => {
+      if (callbacks.onStatusUpdate) {
+        socket.off(`analysis:status:${productId}`, callbacks.onStatusUpdate);
+      }
+      if (callbacks.onEmotionCard) {
+        socket.off(`analysis:emotion:${productId}`, callbacks.onEmotionCard);
+      }
+      if (callbacks.onChartUpdate) {
+        socket.off(`analysis:chart:${productId}`, callbacks.onChartUpdate);
+      }
+      if (callbacks.onComplete) {
+        socket.off(`analysis:complete:${productId}`, callbacks.onComplete);
+      }
+      if (callbacks.onError) {
+        socket.off(`analysis:error:${productId}`, callbacks.onError);
+      }
     };
   }
 

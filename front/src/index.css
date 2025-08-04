@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 추가 유틸리티 클래스 */
+@layer utilities {
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

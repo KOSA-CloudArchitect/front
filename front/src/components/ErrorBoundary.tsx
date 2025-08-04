@@ -11,6 +11,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: any;
+  retryCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -20,10 +21,11 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      retryCount: 0,
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error,
@@ -42,11 +44,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({
+    this.setState((prevState) => ({
       hasError: false,
       error: null,
       errorInfo: null,
-    });
+      retryCount: prevState.retryCount + 1,
+    }));
   };
 
   render() {
@@ -89,6 +92,11 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    // retryCount를 key로 사용하여 자식 컴포넌트를 강제로 다시 마운트
+    return (
+      <div key={this.state.retryCount}>
+        {this.props.children}
+      </div>
+    );
   }
 }

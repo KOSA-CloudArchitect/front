@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, RefreshCw, Home, MessageCircle, Wifi, WifiOff, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export type ErrorType = 'network' | 'server' | 'validation' | 'timeout' | 'unknown';
 
@@ -23,7 +23,14 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   showSupportButton = false,
   className = '',
 }) => {
-  const navigate = useNavigate();
+  // Router 컨텍스트 내에서만 useNavigate 사용
+  let navigate: ReturnType<typeof useNavigate> | null = null;
+  try {
+    navigate = useNavigate();
+  } catch (error) {
+    // Router 외부에서 사용되는 경우 navigate를 null로 설정
+    console.warn('ErrorMessage: useNavigate는 Router 컨텍스트 내에서만 사용 가능합니다.');
+  }
 
   const getErrorIcon = () => {
     switch (type) {
@@ -137,7 +144,14 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
             
             {showHomeButton && (
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  if (navigate) {
+                    navigate('/');
+                  } else {
+                    // navigate가 없는 경우 window.location 사용
+                    window.location.href = '/';
+                  }
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 <Home className="w-4 h-4" />

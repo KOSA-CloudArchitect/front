@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe EKS 아키텍처</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .test-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .test-btn:hover {
+            background: #45a049;
+        }
+        #diagram-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 200px;
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ HighPipe EKS 아키텍처 테스트</h1>
+        
+        <div id="status" class="status loading">
+            시스템 확인 중...
+        </div>
+        
+        <button class="test-btn" onclick="testMermaid()">Mermaid 테스트</button>
+        <button class="test-btn" onclick="testSimpleDiagram()">간단한 다이어그램 테스트</button>
+        <button class="test-btn" onclick="showStaticDiagram()">정적 다이어그램 보기</button>
+        
+        <div id="diagram-container">
+            <p>여기에 다이어그램이 표시됩니다...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script>
+        let mermaidLoaded = false;
+        
+        // 페이지 로드 시 상태 확인
+        window.addEventListener('load', function() {
+            checkStatus();
+        });
+        
+        function checkStatus() {
+            const statusDiv = document.getElementById('status');
+            
+            // Mermaid 로딩 확인
+            if (typeof mermaid !== 'undefined') {
+                mermaidLoaded = true;
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = '✅ Mermaid 라이브러리 로딩 완료! 다이어그램을 테스트해보세요.';
+                
+                // Mermaid 초기화
+                mermaid.initialize({
+                    startOnLoad: true,
+                    theme: 'default',
+                    securityLevel: 'loose'
+                });
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '❌ Mermaid 라이브러리 로딩 실패. 인터넷 연결을 확인해주세요.';
+            }
+        }
+        
+        function testMermaid() {
+            const container = document.getElementById('diagram-container');
+            
+            if (!mermaidLoaded) {
+                container.innerHTML = '<p style="color: red;">❌ Mermaid 라이브러리가 로딩되지 않았습니다.</p>';
+                return;
+            }
+            
+            container.innerHTML = '<div class="mermaid">graph TD; A[시작] --> B[Mermaid 테스트]; B --> C[성공!]; style A fill:#f9f,stroke:#333,stroke-width:2px; style C fill:#9f9,stroke:#333,stroke-width:2px;</div>';
+            
+            // Mermaid 다시 렌더링
+            mermaid.init(undefined, container.querySelector('.mermaid'));
+        }
+        
+        function testSimpleDiagram() {
+            const container = document.getElementById('diagram-container');
+            
+            if (!mermaidLoaded) {
+                container.innerHTML = '<p style="color: red;">❌ Mermaid 라이브러리가 로딩되지 않았습니다.</p>';
+                return;
+            }
+            
+            const diagramCode = `
+                <div class="mermaid">
+                graph TB
+                    User[👤 사용자] --> Frontend[⚛️ Frontend]
+                    Frontend --> API[🖥️ Backend API]
+                    API --> DB[🗄️ Database]
+                    
+                    classDef user fill:#e1f5fe
+                    classDef app fill:#f3e5f5
+                    classDef data fill:#e8f5e8
+                    
+                    class User user
+                    class Frontend,API app
+                    class DB data
+                </div>
+            `;
+            
+            container.innerHTML = diagramCode;
+            mermaid.init(undefined, container.querySelector('.mermaid'));
+        }
+        
+        function showStaticDiagram() {
+            const container = document.getElementById('diagram-container');
+            
+            // 정적 ASCII 다이어그램
+            container.innerHTML = `
+                <pre style="font-family: monospace; background: white; padding: 15px; border: 1px solid #ccc;">
+🏗️ HighPipe EKS 아키텍처 (정적 버전)
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        AWS EKS Cluster                         │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │   Web Tier      │  │  Application    │  │   Data Tier     │  │
+│  │   Namespace     │  │   Tier          │  │   Namespace     │  │
+│  │                 │  │   Namespace     │  │                 │  │
+│  │ - Frontend      │  │ - Backend API   │  │ - Kafka         │  │
+│  │ - Nginx LB      │  │ - WebSocket     │  │ - Redis         │  │
+│  │ - Ingress       │  │ - Airflow       │  │ - PostgreSQL    │  │
+│  └─────────────────┘  │ - Crawling      │  └─────────────────┘  │
+│                       │ - Analysis      │                       │
+│                       └─────────────────┘                       │
+└─────────────────────────────────────────────────────────────────┘
+
+📊 노드 그룹:
+• 💻 General (m5.large/xlarge) - 웹 서비스
+• 🎮 GPU (g4dn.xlarge) - LLM 분석  
+• 💾 Data (r5.large/xlarge) - 메모리 집약적
+• 💰 Spot - 배치 처리 (비용 절약)
+
+🔄 데이터 플로우:
+사용자 → Frontend → API → Kafka → Airflow → 크롤링/분석 → 결과
+
+🛡️ 보안:
+• VPC Private/Public 서브넷 분리
+• Security Groups & Network Policies  
+• ALB + Ingress Controller
+                </pre>
+            `;
+        }
+        
+        // 5초 후 자동으로 상태 재확인
+        setTimeout(checkStatus, 5000);
+    </script>
+</body>
+</html>

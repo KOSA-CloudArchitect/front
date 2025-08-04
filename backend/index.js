@@ -14,12 +14,18 @@ const logger = require('./config/logger');
 const kafkaService = require('./services/kafkaService');
 const kafkaConsumer = require('./services/kafkaConsumer');
 const websocketService = require('./services/websocketService');
+const { serve, setup } = require('./config/swagger');
+const redisService = require('./services/redisService');
+const { cacheService } = require('./services/cacheService');
+const { createSessionMiddleware } = require('./config/session');
 const productRouter = require('./routes/product');
 const categoryRouter = require('./routes/category');
 const analyzeRouter = require('./routes/analyze');
 const authRouter = require('./routes/auth');
 const kafkaRouter = require('./routes/kafka');
 const websocketRouter = require('./routes/websocket');
+const apiInfoRouter = require('./routes/api-info');
+const cacheRouter = require('./routes/cache');
 
 // Kafka 서비스는 별도 모듈로 분리됨
 
@@ -51,7 +57,38 @@ app.set('websocketService', websocketService);
 app.use(express.json());
 app.use(cookieParser());
 
+// 세션 미들웨어 설정
+app.use(createSessionMiddleware());
+
+// Swagger API 문서
+app.use('/api-docs', serve, setup);
+
 // 헬스 체크 엔드포인트
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: 서버 상태 확인
+ *     description: 서버가 정상적으로 실행 중인지 확인합니다.
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: 서버 정상 상태
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: OK
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 message:
+ *                   type: string
+ *                   example: KOSA Backend is running
+ */
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -59,6 +96,24 @@ app.get('/health', (req, res) => {
     message: 'KOSA Backend is running'
   });
 });
+
+// Redis 초기화
+async function initRedis() {
+  try {
+    logger.info('🔄 Redis 서비스 초기화 중...');
+    
+    // Redis 서비스 초기화
+    await redisService.initialize();
+    
+    // 캐시 서비스 초기화
+    await cacheService.initialize();
+    
+    logger.info('✅ Redis 서비스 초기화 완료');
+  } catch (error) {
+    logger.error('❌ Redis 초기화 실패:', error);
+    // Redis 연결 실패해도 서버는 계속 실행
+  }
+}
 
 // Kafka 초기화
 async function initKafka() {
@@ -129,6 +184,14 @@ try {
   logger.info('🛣️ /api/websocket 라우트 등록 시도 중...');
   app.use('/api/websocket', websocketRouter);
   logger.info('✅ /api/websocket 라우트 등록 성공');
+
+  logger.info('🛣️ /api/info 라우트 등록 시도 중...');
+  app.use('/api/info', apiInfoRouter);
+  logger.info('✅ /api/info 라우트 등록 성공');
+
+  logger.info('🛣️ /api/cache 라우트 등록 시도 중...');
+  app.use('/api/cache', cacheRouter);
+  logger.info('✅ /api/cache 라우트 등록 성공');
 } catch (error) {
   logger.error('❌ 라우터 등록 중 오류 발생:', error);
   throw error;
@@ -172,6 +235,9 @@ async function startServer() {
     // Sentry 초기화
     initSentry(app);
 
+    // Redis 초기화
+    await initRedis();
+
     // Kafka 초기화
     await initKafka();
 
@@ -202,6 +268,10 @@ const gracefulShutdown = async (signal) => {
     // Close database connections
     await closePool();
     logger.info('✅ Database connections closed');
+    
+    // Close Redis connections
+    await redisService.disconnect();
+    logger.info('✅ Redis connections closed');
     
     // Close Kafka connections
     await kafkaService.disconnect();

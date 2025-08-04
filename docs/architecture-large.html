@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe EKS 아키텍처 다이어그램 (대형)</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .nav {
+            background: #f1f5f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .nav-btn:hover {
+            background: #2563eb;
+        }
+        
+        .nav-btn.active {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .zoom-btn:hover {
+            background: #4f46e5;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .diagram-section.active {
+            display: block;
+        }
+        
+        .diagram-section h2 {
+            color: #1e293b;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .diagram-container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow: auto;
+            min-height: 700px;
+            position: relative;
+        }
+        
+        .diagram-wrapper {
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+            min-width: 100%;
+        }
+        
+        .mermaid {
+            text-align: center;
+            min-height: 600px;
+        }
+        
+        .mermaid svg {
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 1400px;
+            font-size: 16px !important;
+        }
+        
+        .description {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fullscreen-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .fullscreen-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ HighPipe EKS 아키텍처 (대형 버전)</h1>
+            <p>확대된 다이어그램으로 세부사항까지 명확하게!</p>
+        </div>
+        
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showDiagram('system')">🏢 전체 시스템</button>
+                <button class="nav-btn" onclick="showDiagram('nodes')">🖥️ 노드 그룹</button>
+                <button class="nav-btn" onclick="showDiagram('dataflow')">🔄 데이터 플로우</button>
+                <button class="nav-btn" onclick="showDiagram('security')">🛡️ 네트워크 보안</button>
+                <button class="nav-btn" onclick="showDiagram('scaling')">📈 Auto Scaling</button>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">🔍+</button>
+                <button class="zoom-btn" onclick="zoomOut()">🔍-</button>
+                <button class="zoom-btn" onclick="resetZoom()">100%</button>
+                <button class="zoom-btn" onclick="fitToScreen()">📱 맞춤</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- 전체 시스템 아키텍처 -->
+            <div id="system" class="diagram-section active">
+                <h2>🏢 전체 시스템 아키텍처</h2>
+                <div class="description">
+                    <h3>개요</h3>
+                    <p>EKS 클러스터를 중심으로 한 마이크로서비스 아키텍처입니다. 네임스페이스별로 서비스를 분리하여 관리하며, AWS 관리형 서비스와 연동됩니다.</p>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper" id="current-diagram">
+                        <div class="mermaid">
+graph TB
+    %% External Components
+    User[👤 사용자]
+    Internet[🌐 인터넷]
+    
+    %% AWS Services
+    subgraph AWS["☁️ AWS Cloud"]
+        subgraph VPC["🏢 VPC"]
+            subgraph PublicSubnet["🌐 Public Subnet"]
+                ALB[⚖️ Application Load Balancer]
+                NAT[🚪 NAT Gateway]
+            end
+            
+            subgraph PrivateSubnet["🔒 Private Subnet"]
+                subgraph EKS["☸️ EKS Cluster"]
+                    
+                    %% Web Tier Namespace
+                    subgraph WebTier["📱 web-tier namespace"]
+                        Frontend[⚛️ React Frontend<br/>Pods: 3]
+                        Nginx[🔄 Nginx LoadBalancer<br/>Pods: 2]
+                        Ingress[🚪 Ingress Controller]
+                    end
+                    
+                    %% Application Tier Namespace
+                    subgraph AppTier["🔧 app-tier namespace"]
+                        BackendAPI[🖥️ Backend API<br/>Node.js<br/>Pods: 3-20 HPA]
+                        WebSocket[🔌 WebSocket Server<br/>Pods: 2-10 HPA]
+                        
+                        subgraph AirflowCluster["🌊 Airflow Cluster"]
+                            AirflowScheduler[📅 Scheduler<br/>Pod: 1]
+                            AirflowWebserver[🌐 Webserver<br/>Pods: 2]
+                            AirflowWorker[👷 Workers<br/>Pods: 2-10 HPA]
+                        end
+                    end
+                    
+                    %% Pipeline Tier Namespace
+                    subgraph PipelineTier["🔄 pipeline-tier namespace"]
+                        CrawlingServer[🕷️ Crawling Server<br/>FastAPI + Selenium<br/>Pods: 2-8 HPA]
+                        AnalysisServer[🧠 LLM Analysis Server<br/>FastAPI + GPU<br/>Pods: 1-5 HPA]
+                        SparkCluster[⚡ Spark Cluster<br/>Driver: 1 Executors: 2-10]
+                    end
+                    
+                    %% Data Tier Namespace
+                    subgraph DataTier["💾 data-tier namespace"]
+                        subgraph KafkaCluster["📨 Kafka Cluster"]
+                            Kafka1[📨 Kafka Broker 1]
+                            Kafka2[📨 Kafka Broker 2]
+                            Kafka3[📨 Kafka Broker 3]
+                            Zookeeper[🐘 Zookeeper<br/>Pods: 3]
+                        end
+                        
+                        Redis[🔴 Redis Cluster<br/>Master: 1 Slaves: 2]
+                        PostgresProxy[🐘 PostgreSQL Proxy<br/>Connection Pooling]
+                    end
+                    
+                    %% Monitoring Namespace
+                    subgraph Monitoring["📊 monitoring namespace"]
+                        Prometheus[📈 Prometheus<br/>Pod: 1]
+                        Grafana[📊 Grafana<br/>Pod: 1]
+                        AlertManager[🚨 AlertManager<br/>Pod: 1]
+                    end
+                end
+            end
+        end
+        
+        %% Managed AWS Services
+        subgraph ManagedServices["🛠️ AWS Managed Services"]
+            RDS[🗄️ RDS PostgreSQL<br/>Multi-AZ]
+            S3[🪣 S3 Data Lake<br/>Raw Data Storage]
+            Redshift[🏭 Redshift<br/>Data Warehouse]
+            ECR[📦 ECR<br/>Container Registry]
+            SecretsManager[🔐 Secrets Manager]
+            CloudWatch[📊 CloudWatch Logs]
+        end
+    end
+    
+    %% Connections
+    User --> Internet
+    Internet --> ALB
+    ALB --> Ingress
+    Ingress --> Frontend
+    Ingress --> BackendAPI
+    Ingress --> AirflowWebserver
+    
+    Frontend --> BackendAPI
+    BackendAPI --> WebSocket
+    BackendAPI --> Redis
+    BackendAPI --> PostgresProxy
+    BackendAPI --> Kafka1
+    
+    AirflowScheduler --> AirflowWorker
+    AirflowWorker --> CrawlingServer
+    AirflowWorker --> AnalysisServer
+    AirflowWorker --> SparkCluster
+    
+    CrawlingServer --> Kafka2
+    AnalysisServer --> Kafka3
+    SparkCluster --> S3
+    SparkCluster --> Redshift
+    
+    Kafka1 --> Zookeeper
+    Kafka2 --> Zookeeper
+    Kafka3 --> Zookeeper
+    
+    PostgresProxy --> RDS
+    
+    %% Monitoring connections
+    Prometheus --> BackendAPI
+    Prometheus --> Kafka1
+    Prometheus --> Redis
+    Grafana --> Prometheus
+    AlertManager --> Prometheus
+    
+    %% External connections
+    BackendAPI --> SecretsManager
+    CrawlingServer --> S3
+    AnalysisServer --> S3
+    
+    %% Logging
+    BackendAPI --> CloudWatch
+    CrawlingServer --> CloudWatch
+    AnalysisServer --> CloudWatch
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef k8s fill:#326CE5,stroke:#fff,stroke-width:2px,color:#fff
+    classDef app fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef data fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    classDef monitor fill:#FF5722,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class AWS,ManagedServices aws
+    class EKS,WebTier,AppTier,PipelineTier,DataTier k8s
+    class Frontend,BackendAPI,WebSocket,CrawlingServer,AnalysisServer app
+    class KafkaCluster,Redis,PostgresProxy,RDS,S3,Redshift data
+    class Monitoring,Prometheus,Grafana,AlertManager monitor
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="전체화면">⛶</button>
+
+    <script>
+        let currentZoom = 1;
+        
+        // Mermaid 초기화 (대형 버전)
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: 18,
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 30,
+                nodeSpacing: 80,
+                rankSpacing: 100
+            },
+            sequence: {
+                useMaxWidth: false,
+                width: 200,
+                height: 100,
+                actorMargin: 80,
+                boxMargin: 15,
+                messageMargin: 50
+            }
+        });
+
+        function showDiagram(diagramId) {
+            // 현재는 시스템 다이어그램만 구현
+            console.log('다이어그램 전환:', diagramId);
+        }
+        
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function fitToScreen() {
+            const container = document.querySelector('.diagram-container');
+            const diagram = document.querySelector('#current-diagram');
+            const containerWidth = container.clientWidth - 40; // padding 고려
+            const diagramWidth = diagram.scrollWidth;
+            
+            currentZoom = Math.min(containerWidth / diagramWidth, 1);
+            applyZoom();
+        }
+        
+        function applyZoom() {
+            const diagram = document.querySelector('#current-diagram');
+            diagram.style.transform = `scale(${currentZoom})`;
+            
+            // 줌 레벨 표시 업데이트
+            const zoomDisplay = Math.round(currentZoom * 100);
+            document.querySelector('.zoom-controls .zoom-btn:nth-child(3)').textContent = `${zoomDisplay}%`;
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // 마우스 휠로 줌
+        document.querySelector('.diagram-container').addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    zoomIn();
+                } else {
+                    zoomOut();
+                }
+            }
+        });
+        
+        // 드래그로 이동
+        let isDragging = false;
+        let startX, startY, scrollLeft, scrollTop;
+        
+        const container = document.querySelector('.diagram-container');
+        
+        container.addEventListener('mousedown', function(e) {
+            if (e.button === 0) { // 왼쪽 마우스 버튼
+                isDragging = true;
+                startX = e.pageX - container.offsetLeft;
+                startY = e.pageY - container.offsetTop;
+                scrollLeft = container.scrollLeft;
+                scrollTop = container.scrollTop;
+                container.style.cursor = 'grabbing';
+            }
+        });
+        
+        container.addEventListener('mouseleave', function() {
+            isDragging = false;
+            container.style.cursor = 'default';
+        });
+        
+        container.addEventListener('mouseup', function() {
+            isDragging = false;
+            container.style.cursor = 'default';
+        });
+        
+        container.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - container.offsetLeft;
+            const y = e.pageY - container.offsetTop;
+            const walkX = (x - startX) * 2;
+            const walkY = (y - startY) * 2;
+            container.scrollLeft = scrollLeft - walkX;
+            container.scrollTop = scrollTop - walkY;
+        });
+        
+        // 페이지 로드 완료 후 초기 설정
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                mermaid.init();
+                // 초기에 화면에 맞춤
+                setTimeout(fitToScreen, 1000);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

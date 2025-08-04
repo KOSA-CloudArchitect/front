@@ -199,21 +199,43 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (loading: boolean) => set({ isLoading: loading }),
 
       checkAuthStatus: () => {
-        const isAuthenticated = authService.isAuthenticated() && !authService.isTokenExpired();
+        const state = get();
+        const hasToken = authService.isAuthenticated();
+        const isTokenValid = hasToken && !authService.isTokenExpired();
         
-        if (!isAuthenticated) {
+        // 토큰이 없거나 만료된 경우
+        if (!isTokenValid && state.isAuthenticated) {
           authService.clearTokens();
           set({
             user: null,
             isAuthenticated: false,
             error: null,
           });
-        } else {
+          return;
+        }
+        
+        // 토큰이 유효하지만 상태가 인증되지 않은 경우
+        if (isTokenValid && !state.isAuthenticated) {
           set({ isAuthenticated: true });
           
           // 사용자 정보가 없으면 조회
-          if (!get().user) {
-            get().getCurrentUser();
+          if (!state.user) {
+            // 즉시 실행하지 않고 다음 틱에 실행
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.isAuthenticated && !currentState.user) {
+                currentState.getCurrentUser().catch((error) => {
+                  console.error('사용자 정보 조회 실패:', error);
+                  // 사용자 정보 조회 실패 시 로그아웃
+                  authService.clearTokens();
+                  set({
+                    user: null,
+                    isAuthenticated: false,
+                    error: null,
+                  });
+                });
+              }
+            }, 0);
           }
         }
       },
@@ -233,15 +255,15 @@ export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useAuthLoading = () => useAuthStore((state) => state.isLoading);
 export const useAuthError = () => useAuthStore((state) => state.error);
-export const useAuthActions = () => useAuthStore((state) => ({
-  login: state.login,
-  register: state.register,
-  logout: state.logout,
-  logoutAll: state.logoutAll,
-  refreshToken: state.refreshToken,
-  getCurrentUser: state.getCurrentUser,
-  changePassword: state.changePassword,
-  clearError: state.clearError,
-  setLoading: state.setLoading,
-  checkAuthStatus: state.checkAuthStatus,
-}));
+
+// 액션들을 개별적으로 선택하는 훅들 (무한 루프 방지)
+export const useAuthLogin = () => useAuthStore((state) => state.login);
+export const useAuthRegister = () => useAuthStore((state) => state.register);
+export const useAuthLogout = () => useAuthStore((state) => state.logout);
+export const useAuthLogoutAll = () => useAuthStore((state) => state.logoutAll);
+export const useAuthRefreshToken = () => useAuthStore((state) => state.refreshToken);
+export const useAuthGetCurrentUser = () => useAuthStore((state) => state.getCurrentUser);
+export const useAuthChangePassword = () => useAuthStore((state) => state.changePassword);
+export const useAuthClearError = () => useAuthStore((state) => state.clearError);
+export const useAuthSetLoading = () => useAuthStore((state) => state.setLoading);
+export const useAuthCheckStatus = () => useAuthStore((state) => state.checkAuthStatus);

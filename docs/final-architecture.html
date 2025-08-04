@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe 최종 EKS 아키텍처</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .nav {
+            background: #f1f5f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .nav-btn:hover {
+            background: #2563eb;
+        }
+        
+        .nav-btn.active {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .zoom-btn:hover {
+            background: #4f46e5;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .diagram-section.active {
+            display: block;
+        }
+        
+        .diagram-section h2 {
+            color: #1e293b;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .diagram-container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow: auto;
+            min-height: 700px;
+            position: relative;
+        }
+        
+        .diagram-wrapper {
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+            min-width: 100%;
+        }
+        
+        .mermaid {
+            text-align: center;
+            min-height: 600px;
+        }
+        
+        .mermaid svg {
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 1400px;
+            font-size: 16px !important;
+        }
+        
+        .description {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .aws-note {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .aws-note h4 {
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+        
+        .aws-note p {
+            color: #78350f;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ HighPipe 최종 EKS 아키텍처</h1>
+            <p>AWS 관리형 서비스 중심의 실용적 설계</p>
+        </div>
+        
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showDiagram('system')">🏢 전체 시스템</button>
+                <button class="nav-btn" onclick="showDiagram('kafka')">📨 Kafka 구조</button>
+                <button class="nav-btn" onclick="showDiagram('airflow')">🌊 Airflow 구성</button>
+                <button class="nav-btn" onclick="showDiagram('dataflow')">🔄 데이터 플로우</button>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">🔍+</button>
+                <button class="zoom-btn" onclick="zoomOut()">🔍-</button>
+                <button class="zoom-btn" onclick="resetZoom()">100%</button>
+                <button class="zoom-btn" onclick="fitToScreen()">📱 맞춤</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- 전체 시스템 아키텍처 -->
+            <div id="system" class="diagram-section active">
+                <h2>🏢 전체 시스템 아키텍처 (최종)</h2>
+                
+                <div class="aws-note">
+                    <h4>☁️ AWS 관리형 서비스 활용</h4>
+                    <p><strong>Amazon MSK:</strong> Kafka 대신 관리형 스트리밍 서비스 사용<br>
+                    <strong>Airflow 구성:</strong> EKS 내 Pod 기반 분산 배포<br>
+                    <strong>로컬 크롤링:</strong> VPN을 통한 하이브리드 연결</p>
+                </div>
+                
+                <div class="description">
+                    <h3>AWS 관리형 서비스 중심 아키텍처</h3>
+                    <p>Kubernetes 클러스터 내 Kafka 대신 Amazon MSK를 사용하고, Airflow는 Pod 기반으로 분산 배포하는 실용적인 설계입니다.</p>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h4>🏠 로컬 크롤링</h4>
+                        <p>FastAPI + Selenium, VPN 연결</p>
+                    </div>
+                    <div class="feature">
+                        <h4>☁️ Amazon MSK</h4>
+                        <p>관리형 Kafka 서비스, 운영 부담 최소화</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🌊 Airflow on EKS</h4>
+                        <p>Pod 기반 분산 배포, 확장성 확보</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🗄️ RDS Metadata</h4>
+                        <p>Airflow 메타데이터 전용 PostgreSQL</p>
+                    </div>
+                </div>
+                
+                <div class="diagram-container">
+                    <div class="diagram-wrapper" id="current-diagram">
+                        <div class="mermaid">
+graph TB
+    %% 사용자
+    User[👤 사용자]
+    Internet[🌐 인터넷]
+    
+    %% 로컬 환경
+    subgraph Local["🏠 로컬 환경"]
+        CrawlingServer[🕷️ 크롤링 서버<br/>FastAPI + Selenium<br/>멀티프로세싱]
+        VPNClient[🔒 VPN Client]
+    end
+    
+    %% AWS 클라우드
+    subgraph AWS["☁️ AWS Cloud"]
+        subgraph VPC["🏢 VPC"]
+            VPNGateway[🔒 VPN Gateway]
+            
+            subgraph PublicSubnet["🌐 Public Subnet"]
+                ALB[⚖️ Application Load Balancer]
+                NAT[🚪 NAT Gateway]
+            end
+            
+            subgraph PrivateSubnet["🔒 Private Subnet"]
+                subgraph EKS["☸️ EKS Cluster"]
+                    
+                    %% Web Tier
+                    subgraph WebTier["📱 web-tier namespace"]
+                        Frontend[⚛️ React Frontend<br/>Pods: 3]
+                        Nginx[🔄 Nginx LoadBalancer<br/>Pods: 2]
+                        Ingress[🚪 Ingress Controller]
+                    end
+                    
+                    %% Application Tier
+                    subgraph AppTier["🔧 app-tier namespace"]
+                        BackendAPI[🖥️ Backend API<br/>Node.js + Express<br/>Pods: 3-20 HPA]
+                        WebSocket[🔌 WebSocket Server<br/>Socket.IO<br/>Pods: 2-10 HPA]
+                    end
+                    
+                    %% Airflow Tier
+                    subgraph AirflowTier["🌊 airflow namespace"]
+                        AirflowWebServer[🌐 Airflow WebServer<br/>Pod: 1-3]
+                        AirflowScheduler[📅 Airflow Scheduler<br/>Pod: 1]
+                        AirflowWorker[👷 Airflow Worker<br/>Pods: 2-10 HPA]
+                        GitSync[📦 Git-Sync<br/>DAG 동기화<br/>Pod: 1]
+                    end
+                    
+                    %% Pipeline Tier
+                    subgraph PipelineTier["🔄 pipeline-tier namespace"]
+                        SparkCluster[⚡ Spark Cluster<br/>Streaming Processing<br/>Driver: 1 Executors: 2-10]
+                        AnalysisServer[🧠 LLM Analysis Server<br/>FastAPI + GPU<br/>Pods: 1-5 HPA]
+                    end
+                    
+                    %% Data Tier (Redis만)
+                    subgraph DataTier["💾 data-tier namespace"]
+                        Redis[🔴 Redis Cluster<br/>캐시 + 세션<br/>Master: 1 Slaves: 2]
+                        PostgresProxy[🐘 PostgreSQL Proxy<br/>Connection Pooling]
+                    end
+                    
+                    %% Monitoring
+                    subgraph Monitoring["📊 monitoring namespace"]
+                        Prometheus[📈 Prometheus<br/>메트릭 수집<br/>Pod: 1]
+                        Grafana[📊 Grafana<br/>시각화<br/>Pod: 1]
+                        AlertManager[🚨 AlertManager<br/>알림<br/>Pod: 1]
+                    end
+                end
+            end
+        end
+        
+        %% Amazon MSK 클러스터 (상세)
+        subgraph MSKCluster["📨 Amazon MSK 클러스터"]
+            subgraph MSKBrokers["🖥️ Kafka 브로커 (Multi-AZ)"]
+                MSKBroker1[📨 MSK Broker 1<br/>AZ-1a<br/>m5.large]
+                MSKBroker2[📨 MSK Broker 2<br/>AZ-1b<br/>m5.large]
+                MSKBroker3[📨 MSK Broker 3<br/>AZ-1c<br/>m5.large]
+            end
+            
+            subgraph MSKTopics["📋 주요 토픽"]
+                AnalysisReqTopic[📊 analysis-requests<br/>파티션: 6, 복제: 3]
+                RawDataTopic[📝 raw-review-data<br/>파티션: 12, 복제: 3]
+                StatusTopic[📈 crawling-status<br/>파티션: 6, 복제: 3]
+                ResultTopic[📊 analysis-results<br/>파티션: 6, 복제: 3]
+                CardTopic[💭 sentiment-cards<br/>파티션: 6, 복제: 3]
+            end
+            
+            MSKZooKeeper[🐘 ZooKeeper<br/>관리형 서비스<br/>3 노드 클러스터]
+        end
+        
+        %% AWS 관리형 서비스
+        subgraph ManagedServices["🛠️ AWS 관리형 서비스"]
+            RDSWeb[🗄️ RDS PostgreSQL<br/>웹 서비스 DB<br/>Multi-AZ]
+            RDSAirflow[🗄️ RDS PostgreSQL<br/>Airflow 메타데이터 DB<br/>Multi-AZ]
+            S3DataLake[🪣 S3 Data Lake<br/>원본 리뷰 데이터<br/>파티션 구조]
+            S3Logs[🪣 S3 Airflow Logs<br/>로그 저장소]
+            Redshift[🏭 Redshift<br/>Data Warehouse<br/>분석 결과 저장]
+            ECR[📦 ECR<br/>Container Registry]
+            SecretsManager[🔐 Secrets Manager<br/>인증 정보 관리]
+            CloudWatch[📊 CloudWatch<br/>로그 + 메트릭]
+        end
+    end
+    
+    %% 연결 관계
+    User --> Internet
+    Internet --> ALB
+    ALB --> Ingress
+    Ingress --> Frontend
+    Ingress --> BackendAPI
+    Ingress --> AirflowWebServer
+    
+    %% 웹 서비스 내부 통신
+    Frontend --> BackendAPI
+    BackendAPI --> WebSocket
+    BackendAPI --> Redis
+    BackendAPI --> PostgresProxy
+    BackendAPI --> AnalysisReqTopic
+    
+    %% VPN 연결
+    VPNClient -.->|VPN 터널| VPNGateway
+    CrawlingServer --> VPNClient
+    VPNGateway --> RawDataTopic
+    
+    %% Airflow 구성
+    AirflowScheduler --> AirflowWorker
+    AirflowWebServer --> RDSAirflow
+    AirflowScheduler --> RDSAirflow
+    AirflowWorker --> RDSAirflow
+    GitSync --> AirflowScheduler
+    AirflowWorker --> S3Logs
+    
+    %% Airflow 워크플로우
+    AirflowWorker -.->|API 호출| CrawlingServer
+    AirflowWorker --> SparkCluster
+    AirflowWorker --> AnalysisServer
+    
+    %% 데이터 플로우 (MSK 토픽별)
+    CrawlingServer -.->|VPN| RawDataTopic
+    CrawlingServer -.->|VPN| StatusTopic
+    AnalysisReqTopic --> AirflowScheduler
+    RawDataTopic --> SparkCluster
+    SparkCluster --> ResultTopic
+    ResultTopic --> AnalysisServer
+    AnalysisServer --> CardTopic
+    AnalysisServer --> ResultTopic
+    
+    %% 데이터 저장
+    CrawlingServer -.->|VPN| S3DataLake
+    SparkCluster --> S3DataLake
+    SparkCluster --> Redshift
+    AnalysisServer --> Redshift
+    
+    %% 데이터베이스 연결
+    PostgresProxy --> RDSWeb
+    
+    %% MSK 토픽과 백엔드 연결
+    StatusTopic --> BackendAPI
+    CardTopic --> BackendAPI
+    ResultTopic --> BackendAPI
+    
+    %% MSK 브로커 분산
+    MSKBroker1 --> AnalysisReqTopic
+    MSKBroker1 --> RawDataTopic
+    MSKBroker2 --> StatusTopic
+    MSKBroker2 --> CardTopic
+    MSKBroker3 --> ResultTopic
+    
+    %% ZooKeeper 연결
+    MSKBroker1 --> MSKZooKeeper
+    MSKBroker2 --> MSKZooKeeper
+    MSKBroker3 --> MSKZooKeeper
+    
+    %% 모니터링
+    Prometheus --> BackendAPI
+    Prometheus --> MSKBroker1
+    Prometheus --> Redis
+    Prometheus --> AirflowScheduler
+    Grafana --> Prometheus
+    AlertManager --> Prometheus
+    
+    %% 외부 서비스 연결
+    BackendAPI --> SecretsManager
+    AirflowScheduler --> SecretsManager
+    AnalysisServer --> S3DataLake
+    
+    %% 로깅
+    BackendAPI --> CloudWatch
+    AirflowScheduler --> CloudWatch
+    AnalysisServer --> CloudWatch
+    CrawlingServer -.->|VPN| CloudWatch
+    
+    %% 스타일링
+    classDef local fill:#FFF2CC,stroke:#D6B656,stroke-width:3px,color:#000
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef k8s fill:#326CE5,stroke:#fff,stroke-width:2px,color:#fff
+    classDef app fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef data fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    classDef monitor fill:#FF5722,stroke:#fff,stroke-width:2px,color:#fff
+    classDef airflow fill:#017CEE,stroke:#fff,stroke-width:2px,color:#fff
+    classDef vpn fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    classDef msk fill:#E91E63,stroke:#fff,stroke-width:2px,color:#fff
+    classDef mskTopic fill:#F06292,stroke:#fff,stroke-width:2px,color:#fff
+    classDef mskZk fill:#795548,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class Local,CrawlingServer local
+    class AWS,ManagedServices aws
+    class EKS,WebTier,AppTier,PipelineTier,DataTier k8s
+    class Frontend,BackendAPI,WebSocket,AnalysisServer app
+    class Redis,PostgresProxy,RDSWeb,S3DataLake,S3Logs,Redshift data
+    class Monitoring,Prometheus,Grafana,AlertManager monitor
+    class AirflowTier,AirflowWebServer,AirflowScheduler,AirflowWorker,GitSync airflow
+    class VPNClient,VPNGateway vpn
+    class MSKCluster,MSKBroker1,MSKBroker2,MSKBroker3,RDSAirflow msk
+    class AnalysisReqTopic,RawDataTopic,StatusTopic,ResultTopic,CardTopic mskTopic
+    class MSKZooKeeper mskZk
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kafka 구조 -->
+            <div id="kafka" class="diagram-section">
+                <h2>📨 Amazon MSK Kafka 구조</h2>
+                <div class="description">
+                    <h3>관리형 Kafka 클러스터 설계</h3>
+                    <p>Amazon MSK를 활용한 토픽 구조와 메시지 플로우입니다. 각 토픽은 특정 목적에 맞게 설계되었습니다.</p>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h4>📨 3 브로커 클러스터</h4>
+                        <p>고가용성을 위한 Multi-AZ 배포</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔄 자동 스케일링</h4>
+                        <p>트래픽에 따른 자동 확장/축소</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔐 보안 통신</h4>
+                        <p>TLS 암호화 및 IAM 인증</p>
+                    </div>
+                    <div class="feature">
+                        <h4>📊 내장 모니터링</h4>
+                        <p>CloudWatch 메트릭 자동 수집</p>
+                    </div>
+                </div>
+                
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+graph TB
+    %% Amazon MSK 클러스터
+    subgraph MSKCluster["📨 Amazon MSK 클러스터"]
+        subgraph Brokers["🖥️ Kafka 브로커"]
+            Broker1[📨 Broker 1<br/>AZ-1a<br/>m5.large]
+            Broker2[📨 Broker 2<br/>AZ-1b<br/>m5.large]
+            Broker3[📨 Broker 3<br/>AZ-1c<br/>m5.large]
+        end
+        
+        subgraph ZooKeeper["🐘 ZooKeeper (관리형)"]
+            ZK1[🐘 ZK Node 1<br/>AZ-1a]
+            ZK2[🐘 ZK Node 2<br/>AZ-1b]
+            ZK3[🐘 ZK Node 3<br/>AZ-1c]
+        end
+    end
+    
+    %% Kafka 토픽 구조
+    subgraph Topics["📋 Kafka 토픽 구조"]
+        subgraph RequestTopics["📥 요청 토픽"]
+            ProductSearchReq[🔍 product-search-requests<br/>파티션: 6, 복제: 3<br/>보관: 7일]
+            AnalysisReq[📊 analysis-requests<br/>파티션: 6, 복제: 3<br/>보관: 7일]
+            WatchlistReq[⭐ watchlist-requests<br/>파티션: 3, 복제: 3<br/>보관: 7일]
+        end
+        
+        subgraph StatusTopics["📈 상태 토픽"]
+            CrawlingStatus[🕷️ crawling-status<br/>파티션: 6, 복제: 3<br/>보관: 1일]
+            AnalysisStatus[🧠 analysis-status<br/>파티션: 6, 복제: 3<br/>보관: 1일]
+            ProcessingStatus[⚡ processing-status<br/>파티션: 6, 복제: 3<br/>보관: 1일]
+        end
+        
+        subgraph DataTopics["💾 데이터 토픽"]
+            RawReviews[📝 raw-review-data<br/>파티션: 12, 복제: 3<br/>보관: 3일<br/>압축: gzip]
+            ProcessedReviews[🔄 processed-review-data<br/>파티션: 12, 복제: 3<br/>보관: 3일<br/>압축: gzip]
+            SentimentCards[💭 sentiment-cards<br/>파티션: 6, 복제: 3<br/>보관: 1일]
+        end
+        
+        subgraph ResultTopics["📊 결과 토픽"]
+            AnalysisResults[📈 analysis-results<br/>파티션: 6, 복제: 3<br/>보관: 30일]
+            Notifications[🔔 notifications<br/>파티션: 3, 복제: 3<br/>보관: 7일]
+            Alerts[🚨 alerts<br/>파티션: 3, 복제: 3<br/>보관: 7일]
+        end
+    end
+    
+    %% 프로듀서들
+    subgraph Producers["📤 Kafka 프로듀서"]
+        BackendProducer[🖥️ Backend API<br/>분석 요청 발행]
+        CrawlerProducer[🕷️ 크롤링 서버<br/>원본 데이터 발행]
+        SparkProducer[⚡ Spark<br/>처리된 데이터 발행]
+        AnalysisProducer[🧠 분석 서버<br/>결과 데이터 발행]
+    end
+    
+    %% 컨슈머들
+    subgraph Consumers["📥 Kafka 컨슈머"]
+        AirflowConsumer[🌊 Airflow<br/>요청 수신 및 DAG 트리거]
+        SparkConsumer[⚡ Spark<br/>데이터 스트리밍 처리]
+        AnalysisConsumer[🧠 분석 서버<br/>분석 작업 수행]
+        BackendConsumer[🖥️ Backend API<br/>상태/결과 수신]
+        NotificationConsumer[🔔 알림 서비스<br/>알림 발송]
+    end
+    
+    %% 프로듀서 → 토픽 연결
+    BackendProducer --> ProductSearchReq
+    BackendProducer --> AnalysisReq
+    BackendProducer --> WatchlistReq
+    
+    CrawlerProducer --> RawReviews
+    CrawlerProducer --> CrawlingStatus
+    
+    SparkProducer --> ProcessedReviews
+    SparkProducer --> ProcessingStatus
+    
+    AnalysisProducer --> SentimentCards
+    AnalysisProducer --> AnalysisResults
+    AnalysisProducer --> AnalysisStatus
+    AnalysisProducer --> Notifications
+    
+    %% 토픽 → 컨슈머 연결
+    ProductSearchReq --> AirflowConsumer
+    AnalysisReq --> AirflowConsumer
+    WatchlistReq --> AirflowConsumer
+    
+    RawReviews --> SparkConsumer
+    ProcessedReviews --> AnalysisConsumer
+    
+    CrawlingStatus --> BackendConsumer
+    AnalysisStatus --> BackendConsumer
+    ProcessingStatus --> BackendConsumer
+    SentimentCards --> BackendConsumer
+    AnalysisResults --> BackendConsumer
+    
+    Notifications --> NotificationConsumer
+    Alerts --> NotificationConsumer
+    
+    %% 브로커 연결
+    Broker1 --> ProductSearchReq
+    Broker1 --> RawReviews
+    Broker1 --> AnalysisResults
+    
+    Broker2 --> AnalysisReq
+    Broker2 --> ProcessedReviews
+    Broker2 --> SentimentCards
+    
+    Broker3 --> WatchlistReq
+    Broker3 --> CrawlingStatus
+    Broker3 --> Notifications
+    
+    %% ZooKeeper 연결
+    Broker1 --> ZK1
+    Broker2 --> ZK2
+    Broker3 --> ZK3
+    
+    %% 스타일링
+    classDef broker fill:#E91E63,stroke:#fff,stroke-width:2px,color:#fff
+    classDef zk fill:#795548,stroke:#fff,stroke-width:2px,color:#fff
+    classDef requestTopic fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    classDef statusTopic fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+    classDef dataTopic fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef resultTopic fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    classDef producer fill:#F44336,stroke:#fff,stroke-width:2px,color:#fff
+    classDef consumer fill:#3F51B5,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class Broker1,Broker2,Broker3 broker
+    class ZK1,ZK2,ZK3 zk
+    class ProductSearchReq,AnalysisReq,WatchlistReq requestTopic
+    class CrawlingStatus,AnalysisStatus,ProcessingStatus statusTopic
+    class RawReviews,ProcessedReviews,SentimentCards dataTopic
+    class AnalysisResults,Notifications,Alerts resultTopic
+    class BackendProducer,CrawlerProducer,SparkProducer,AnalysisProducer producer
+    class AirflowConsumer,SparkConsumer,AnalysisConsumer,BackendConsumer,NotificationConsumer consumer
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="aws-note">
+                    <h4>📨 Kafka 토픽 설계 원칙</h4>
+                    <p><strong>파티셔닝:</strong> 처리량에 따른 파티션 수 조정 (요청: 6개, 데이터: 12개)<br>
+                    <strong>복제:</strong> 모든 토픽 복제 팩터 3으로 고가용성 확보<br>
+                    <strong>보관 정책:</strong> 데이터 특성에 따른 차등 보관 (상태: 1일, 결과: 30일)<br>
+                    <strong>압축:</strong> 대용량 데이터 토픽에 gzip 압축 적용</p>
+                </div>
+                
+                <div class="description">
+                    <h3>주요 Kafka 메시지 구조</h3>
+                    <pre style="background: #f1f5f9; padding: 15px; border-radius: 6px; overflow-x: auto;">
+<strong>// 분석 요청 메시지 (analysis-requests)</strong>
+{
+  "requestId": "req_12345",
+  "productId": "prod_67890",
+  "userId": "user_abc123",
+  "requestType": "single_product_analysis",
+  "timestamp": "2025-01-31T10:30:00Z",
+  "metadata": {
+    "priority": "high",
+    "source": "web_ui"
+  }
+}
+
+<strong>// 크롤링 상태 메시지 (crawling-status)</strong>
+{
+  "requestId": "req_12345",
+  "status": "in_progress",
+  "progress": 45,
+  "totalReviews": 1000,
+  "crawledReviews": 450,
+  "timestamp": "2025-01-31T10:32:15Z",
+  "message": "크롤링 진행 중..."
+}
+
+<strong>// 원본 리뷰 데이터 (raw-review-data)</strong>
+{
+  "requestId": "req_12345",
+  "productId": "prod_67890",
+  "reviewId": "rev_xyz789",
+  "reviewText": "이 상품 정말 좋아요! 배송도 빠르고...",
+  "rating": 5,
+  "reviewDate": "2025-01-30",
+  "reviewerName": "김**",
+  "timestamp": "2025-01-31T10:32:30Z"
+}
+
+<strong>// 실시간 감정 카드 (sentiment-cards)</strong>
+{
+  "requestId": "req_12345",
+  "cardId": "card_001",
+  "reviewText": "이 상품 정말 좋아요!",
+  "sentiment": "positive",
+  "confidence": 0.95,
+  "keywords": ["좋아요", "배송", "빠르고"],
+  "timestamp": "2025-01-31T10:35:20Z",
+  "sequenceNumber": 1
+}
+
+<strong>// 최종 분석 결과 (analysis-results)</strong>
+{
+  "requestId": "req_12345",
+  "productId": "prod_67890",
+  "analysisId": "analysis_456",
+  "sentimentRatio": {
+    "positive": 0.65,
+    "neutral": 0.25,
+    "negative": 0.10
+  },
+  "summary": "전반적으로 긍정적인 평가...",
+  "keywords": ["좋아요", "배송", "품질", "가격"],
+  "totalReviews": 1000,
+  "timestamp": "2025-01-31T10:40:00Z"
+}</pre>
+                </div>
+            </div>
+            
+            <!-- Airflow 구성 -->
+            <div id="airflow" class="diagram-section">
+                <h2>🌊 Airflow EKS 구성</h2>
+                <div class="description">
+                    <h3>Pod 기반 Airflow 분산 배포</h3>
+                    <p>제공해주신 이미지를 기반으로 한 EKS 내 Airflow 구성입니다. 각 컴포넌트가 독립적인 Pod로 배포됩니다.</p>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+graph TB
+    %% Airflow 네임스페이스
+    subgraph AirflowNamespace["🌊 airflow namespace"]
+        
+        %% Git-Sync Pod
+        subgraph GitSyncPod["📦 Git-Sync Pod"]
+            GitSync[📦 Git-Sync Container<br/>DAG 파일 동기화<br/>GitHub/GitLab 연동]
+        end
+        
+        %% Airflow WebServer Pod
+        subgraph WebServerPod["🌐 Airflow WebServer Pod(1-3)"]
+            WebServer[🌐 Airflow WebServer<br/>웹 UI 제공<br/>사용자 인터페이스]
+        end
+        
+        %% Airflow Scheduler Pod
+        subgraph SchedulerPod["📅 Airflow Scheduler Pod(1)"]
+            Scheduler[📅 Airflow Scheduler<br/>DAG 스케줄링<br/>태스크 큐 관리]
+        end
+        
+        %% Airflow Worker Pods
+        subgraph WorkerPods["👷 Airflow Worker Pods(2-10)"]
+            Worker1[👷 Airflow Worker 1<br/>태스크 실행]
+            Worker2[👷 Airflow Worker 2<br/>태스크 실행]
+            WorkerN[👷 Airflow Worker N<br/>태스크 실행]
+        end
+        
+        %% Kubernetes Executors
+        subgraph K8sExecutors["⚙️ Kubernetes Executors"]
+            KubeExecutor1[⚙️ Kubernetes Executor<br/>동적 Pod 생성]
+            KubePodOperator[⚙️ KubernetesPodOperator<br/>GPU 작업 실행]
+        end
+        
+        %% Spark Server Pods
+        subgraph SparkPods["⚡ Spark Server Pods(1-5)"]
+            SparkDriver[⚡ Spark Driver<br/>작업 조정]
+            SparkExecutor1[⚡ Spark Executor 1<br/>데이터 처리]
+            SparkExecutor2[⚡ Spark Executor 2<br/>데이터 처리]
+        end
+        
+        %% Analysis Server Pods
+        subgraph AnalysisPods["🧠 Analysis Server Pods(1-2)"]
+            AnalysisServer1[🧠 Analysis Server 1<br/>LLM 분석<br/>GPU 사용]
+            AnalysisServer2[🧠 Analysis Server 2<br/>LLM 분석<br/>GPU 사용]
+        end
+    end
+    
+    %% 외부 서비스
+    subgraph ExternalServices["🛠️ 외부 서비스"]
+        RDSAirflow[🗄️ RDS PostgreSQL<br/>Airflow 메타데이터 DB]
+        S3Logs[🪣 S3 Airflow Logs<br/>로그 저장소]
+        MSK[📨 Amazon MSK<br/>메시지 큐]
+        LocalCrawler[🏠 로컬 크롤링 서버<br/>VPN 연결]
+    end
+    
+    %% 연결 관계
+    GitSync --> Scheduler
+    Scheduler --> Worker1
+    Scheduler --> Worker2
+    Scheduler --> WorkerN
+    
+    WebServer --> RDSAirflow
+    Scheduler --> RDSAirflow
+    Worker1 --> RDSAirflow
+    Worker2 --> RDSAirflow
+    WorkerN --> RDSAirflow
+    
+    Worker1 --> S3Logs
+    Worker2 --> S3Logs
+    WorkerN --> S3Logs
+    
+    Worker1 --> KubeExecutor1
+    Worker2 --> KubePodOperator
+    
+    KubeExecutor1 --> SparkDriver
+    SparkDriver --> SparkExecutor1
+    SparkDriver --> SparkExecutor2
+    
+    KubePodOperator --> AnalysisServer1
+    KubePodOperator --> AnalysisServer2
+    
+    Worker1 -.->|API 호출| LocalCrawler
+    Worker2 -.->|API 호출| LocalCrawler
+    
+    SparkExecutor1 --> MSK
+    SparkExecutor2 --> MSK
+    AnalysisServer1 --> MSK
+    AnalysisServer2 --> MSK
+    
+    %% 스타일링
+    classDef airflowCore fill:#017CEE,stroke:#fff,stroke-width:2px,color:#fff
+    classDef executor fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+    classDef processing fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef external fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    classDef storage fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class GitSync,WebServer,Scheduler,Worker1,Worker2,WorkerN airflowCore
+    class KubeExecutor1,KubePodOperator executor
+    class SparkDriver,SparkExecutor1,SparkExecutor2,AnalysisServer1,AnalysisServer2 processing
+    class LocalCrawler,MSK external
+    class RDSAirflow,S3Logs storage
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 데이터 플로우 -->
+            <div id="dataflow" class="diagram-section">
+                <h2>🔄 데이터 플로우 (AWS MSK 기반)</h2>
+                <div class="description">
+                    <h3>Amazon MSK 중심의 데이터 처리</h3>
+                    <p>관리형 Kafka 서비스인 Amazon MSK를 중심으로 한 실시간 데이터 처리 흐름입니다. 각 단계별로 적절한 토픽을 통해 메시지가 전달됩니다.</p>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h4>📥 요청 단계</h4>
+                        <p>analysis-requests → Airflow DAG 트리거</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🕷️ 크롤링 단계</h4>
+                        <p>raw-review-data + crawling-status</p>
+                    </div>
+                    <div class="feature">
+                        <h4>⚡ 처리 단계</h4>
+                        <p>processed-review-data + processing-status</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🧠 분석 단계</h4>
+                        <p>sentiment-cards + analysis-results</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+sequenceDiagram
+    participant User as 👤 사용자
+    participant Frontend as ⚛️ Frontend
+    participant API as 🖥️ Backend API
+    participant WS as 🔌 WebSocket
+    participant MSK as 📨 Amazon MSK
+    participant Airflow as 🌊 Airflow
+    participant LocalCrawler as 🏠 로컬 크롤링 서버
+    participant Spark as ⚡ Spark
+    participant Analysis as 🧠 Analysis
+    participant S3 as 🪣 S3
+    participant Redshift as 🏭 Redshift
+    participant RDS as 🗄️ RDS
+    participant Redis as 🔴 Redis
+    
+    User->>Frontend: 상품 분석 요청
+    Frontend->>API: POST /api/analysis/start
+    API->>MSK: 분석 요청 메시지 발행
+    API->>Redis: 요청 상태 캐싱
+    API-->>Frontend: 분석 ID 반환
+    
+    Frontend->>WS: WebSocket 연결 (분석 ID)
+    
+    MSK->>Airflow: 메시지 수신 및 DAG 트리거
+    Airflow->>LocalCrawler: VPN을 통한 API 호출
+    
+    Note over LocalCrawler: 멀티프로세싱 크롤링 실행
+    
+    loop 크롤링 진행
+        LocalCrawler-->>MSK: VPN을 통한 진행 상태 업데이트
+        MSK->>API: 상태 메시지 수신
+        API->>WS: 실시간 상태 전송
+        WS-->>Frontend: 진행률 업데이트
+    end
+    
+    LocalCrawler-->>S3: VPN을 통한 원본 데이터 저장
+    LocalCrawler-->>MSK: VPN을 통한 수집된 리뷰 데이터 전송
+    
+    MSK->>Spark: KubernetesPodOperator로 Spark 작업 실행
+    Spark->>S3: 전처리된 데이터 저장
+    Spark->>MSK: 처리된 데이터 전송
+    
+    MSK->>Analysis: KubernetesPodOperator로 GPU 분석 작업 실행
+    
+    loop 분석 진행
+        Analysis->>MSK: 분석 진행 상태
+        MSK->>API: 상태 메시지 수신
+        API->>WS: 실시간 상태 전송
+        WS-->>Frontend: 분석 진행률
+        
+        Analysis->>MSK: 개별 감정 카드 결과
+        MSK->>API: 카드 데이터 수신
+        API->>Redis: 카드 데이터 임시 저장
+        API->>WS: 실시간 카드 전송
+        WS-->>Frontend: 감정 카드 표시
+    end
+    
+    Analysis->>Redshift: 최종 분석 결과 저장
+    Analysis->>RDS: 웹 서비스용 결과 저장
+    Analysis->>MSK: 분석 완료 알림
+    MSK->>API: 완료 메시지 수신
+    API->>WS: 분석 완료 알림
+    WS-->>Frontend: 결과 페이지로 이동
+    
+    Frontend->>API: GET /api/analysis/{id}/results
+    API->>RDS: 분석 결과 조회
+    API->>Redis: 결과 캐싱
+    API-->>Frontend: 분석 결과 반환
+    
+    Note over MSK: Amazon MSK 토픽별 메시지 플로우<br/>1. analysis-requests (요청)<br/>2. raw-review-data (원본 데이터)<br/>3. crawling-status (크롤링 상태)<br/>4. processed-review-data (처리된 데이터)<br/>5. processing-status (처리 상태)<br/>6. sentiment-cards (실시간 카드)<br/>7. analysis-results (최종 결과)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentZoom = 1;
+        
+        // Mermaid 초기화
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: 16,
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 30,
+                nodeSpacing: 80,
+                rankSpacing: 100
+            },
+            sequence: {
+                useMaxWidth: false,
+                width: 200,
+                height: 100,
+                actorMargin: 80,
+                boxMargin: 15,
+                messageMargin: 50
+            }
+        });
+
+        function showDiagram(diagramId) {
+            // 모든 섹션 숨기기
+            const sections = document.querySelectorAll('.diagram-section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 모든 버튼 비활성화
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 선택된 섹션 표시
+            const targetSection = document.getElementById(diagramId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+            
+            // 선택된 버튼 활성화
+            event.target.classList.add('active');
+            
+            // 줌 리셋
+            resetZoom();
+            
+            // 페이지 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function fitToScreen() {
+            const container = document.querySelector('.diagram-section.active .diagram-container');
+            const diagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (container && diagram) {
+                const containerWidth = container.clientWidth - 40;
+                const diagramWidth = diagram.scrollWidth;
+                currentZoom = Math.min(containerWidth / diagramWidth, 1);
+                applyZoom();
+            }
+        }
+        
+        function applyZoom() {
+            const activeDiagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (activeDiagram) {
+                activeDiagram.style.transform = `scale(${currentZoom})`;
+            }
+            
+            // 줌 레벨 표시 업데이트
+            const zoomDisplay = Math.round(currentZoom * 100);
+            document.querySelector('.zoom-controls .zoom-btn:nth-child(3)').textContent = `${zoomDisplay}%`;
+        }
+        
+        // 페이지 로드 완료 후 초기 설정
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                mermaid.init();
+                setTimeout(fitToScreen, 1000);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

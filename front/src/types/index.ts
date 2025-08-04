@@ -135,3 +135,27 @@ export interface ApiErrorResponse {
 
 // WebSocket 분석 데이터 타입 (별칭)
 export type SocketAnalysisData = WebSocketAnalysisEvent;
+
+// 실시간 분석 관련 타입
+export interface RealtimeAnalysisEvent {
+  type: 'status' | 'emotion' | 'chart' | 'complete' | 'error';
+  productId: string;
+  data: any;
+  timestamp: string;
+}
+
+export interface EmotionCardData {
+  id: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  content: string;
+  keywords: string[];
+  confidence: number;
+  timestamp: string;
+}
+
+export interface AnalysisChartData {
+  positive: number;
+  negative: number;
+  neutral: number;
+  totalProcessed: number;
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useIsAuthenticated, useAuthUser, useAuthActions } from '../../stores/authStore';
+import { useIsAuthenticated, useAuthUser, useAuthLogout } from '../../stores/authStore';
 import { Search, User, LogOut, Settings } from 'lucide-react';
 
 interface HeaderProps {
@@ -11,7 +11,7 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
   const navigate = useNavigate();
   const isAuthenticated = useIsAuthenticated();
   const user = useAuthUser();
-  const { logout } = useAuthActions();
+  const logout = useAuthLogout();
 
   const handleLogout = async () => {
     try {

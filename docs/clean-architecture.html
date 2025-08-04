@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe 깔끔한 EKS 아키텍처</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .nav {
+            background: #f1f5f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #2563eb;
+        }
+
+        .nav-btn.active {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .zoom-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .zoom-btn:hover {
+            background: #4f46e5;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .diagram-section.active {
+            display: block;
+        }
+
+        .diagram-section h2 {
+            color: #1e293b;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .diagram-container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow: auto;
+            min-height: 700px;
+            position: relative;
+        }
+
+        .diagram-wrapper {
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+            min-width: 100%;
+        }
+
+        .mermaid {
+            text-align: center;
+            min-height: 600px;
+        }
+
+        .mermaid svg {
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 1400px;
+            font-size: 16px !important;
+        }
+
+        .description {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .clean-note {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .clean-note h4 {
+            color: #2e7d32;
+            margin: 0 0 10px 0;
+        }
+
+        .clean-note p {
+            color: #1b5e20;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ HighPipe 깔끔한 아키텍처</h1>
+            <p>핵심 관계만 명확하게 표현한 단순화된 설계</p>
+        </div>
+
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showDiagram('overview')">🎯 전체 개요</button>
+                <button class="nav-btn" onclick="showDiagram('dataflow')">🔄 데이터 플로우</button>
+                <button class="nav-btn" onclick="showDiagram('services')">🛠️ 서비스 관계</button>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">🔍+</button>
+                <button class="zoom-btn" onclick="zoomOut()">🔍-</button>
+                <button class="zoom-btn" onclick="resetZoom()">100%</button>
+                <button class="zoom-btn" onclick="fitToScreen()">📱 맞춤</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- 전체 개요 -->
+            <div id="overview" class="diagram-section active">
+                <h2>🎯 전체 시스템 개요</h2>
+
+                <div class="clean-note">
+                    <h4>🧹 단순화된 아키텍처</h4>
+                    <p><strong>핵심 컴포넌트:</strong> 사용자 → 웹 서비스 → Kafka → Airflow → 데이터 처리<br>
+                        <strong>명확한 역할:</strong> 각 컴포넌트의 책임과 관계를 단순하게 표현<br>
+                        <strong>필수 연결만:</strong> 불필요한 선을 제거하여 가독성 향상
+                    </p>
+                </div>
+
+                <div class="description">
+                    <h3>핵심 컴포넌트와 역할</h3>
+                    <p>복잡한 연결선을 제거하고 각 컴포넌트의 핵심 역할과 주요 데이터 흐름만 표현했습니다.</p>
+                </div>
+
+                <div class="features">
+                    <div class="feature">
+                        <h4>🌐 웹 서비스</h4>
+                        <p>사용자 인터페이스 및 API</p>
+                    </div>
+                    <div class="feature">
+                        <h4>📨 Kafka</h4>
+                        <p>메시지 큐 및 이벤트 스트리밍</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🌊 Airflow</h4>
+                        <p>워크플로우 오케스트레이션</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔄 데이터 처리</h4>
+                        <p>크롤링, 분석, 저장</p>
+                    </div>
+                </div>
+
+                <div class="diagram-container">
+                    <div class="diagram-wrapper" id="current-diagram">
+                        <div class="mermaid">
+                            graph TB
+                            %% 사용자 계층
+                            User[👤 사용자]
+
+                            %% 로컬 환경
+                            subgraph Local["🏠 로컬 환경"]
+                            Crawler[🕷️ 크롤링 서버<br />FastAPI + Selenium]
+                            end
+
+                            %% EKS 클러스터 (단순화)
+                            subgraph EKS["☸️ EKS 클러스터"]
+                            %% 웹 서비스
+                            subgraph WebServices["🌐 웹 서비스"]
+                            Frontend[⚛️ Frontend<br />React]
+                            Backend[🖥️ Backend API<br />Node.js]
+                            WebSocket[🔌 WebSocket<br />실시간 통신]
+                            end
+
+                            %% 메시지 큐
+                            subgraph MessageQueue["📨 메시지 큐"]
+                            Kafka[📨 Kafka<br />KRaft 모드<br />3 브로커]
+                            end
+
+                            %% 워크플로우
+                            subgraph Workflow["🌊 워크플로우"]
+                            Airflow[🌊 Airflow<br />DAG 관리<br />작업 스케줄링]
+                            end
+
+                            %% 데이터 처리
+                            subgraph DataProcessing["🔄 데이터 처리"]
+                            Spark[⚡ Spark<br />스트리밍 처리]
+                            Analysis[🧠 LLM 분석<br />GPU 기반]
+                            end
+
+                            %% 데이터 저장
+                            subgraph DataStorage["💾 데이터 저장"]
+                            Redis[🔴 Redis<br />캐시]
+                            PostgreSQL[🐘 PostgreSQL<br />메타데이터]
+                            end
+                            end
+
+                            %% AWS 관리형 서비스
+                            subgraph AWS["☁️ AWS 서비스"]
+                            S3[🪣 S3<br />데이터 레이크]
+                            Redshift[🏭 Redshift<br />데이터 웨어하우스]
+                            end
+
+                            %% 주요 데이터 흐름 (단순화)
+                            User --> Frontend
+                            Frontend --> Backend
+                            Backend --> Kafka
+                            Kafka --> Airflow
+                            Airflow -.->|API 호출| Crawler
+                            Crawler -.->|VPN| Kafka
+                            Kafka --> Spark
+                            Spark --> Analysis
+                            Analysis --> S3
+                            Analysis --> Redshift
+
+                            %% 실시간 통신
+                            Backend --> WebSocket
+                            Backend --> Redis
+                            Backend --> PostgreSQL
+
+                            %% 스타일링 (단순화)
+                            classDef user fill:#FFE0B2,stroke:#FF9800,stroke-width:3px,color:#000
+                            classDef local fill:#FFF2CC,stroke:#D6B656,stroke-width:2px,color:#000
+                            classDef web fill:#E3F2FD,stroke:#2196F3,stroke-width:2px,color:#000
+                            classDef message fill:#FCE4EC,stroke:#E91E63,stroke-width:2px,color:#000
+                            classDef workflow fill:#E0F2F1,stroke:#009688,stroke-width:2px,color:#000
+                            classDef processing fill:#F3E5F5,stroke:#9C27B0,stroke-width:2px,color:#000
+                            classDef storage fill:#FFF3E0,stroke:#FF9800,stroke-width:2px,color:#000
+                            classDef aws fill:#FFEBEE,stroke:#F44336,stroke-width:2px,color:#000
+
+                            class User user
+                            class Local,Crawler local
+                            class WebServices,Frontend,Backend,WebSocket web
+                            class MessageQueue,Kafka message
+                            class Workflow,Airflow workflow
+                            class DataProcessing,Spark,Analysis processing
+                            class DataStorage,Redis,PostgreSQL storage
+                            class AWS,S3,Redshift aws
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 플로우 -->
+            <div id="dataflow" class="diagram-section">
+                <h2>🔄 핵심 데이터 플로우</h2>
+                <div class="description">
+                    <h3>단순화된 데이터 처리 흐름</h3>
+                    <p>사용자 요청부터 결과 반환까지의 핵심 단계만 표현한 명확한 플로우입니다.</p>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+                            sequenceDiagram
+                            participant User as 👤 사용자
+                            participant Web as 🌐 웹 서비스
+                            participant Kafka as 📨 Kafka
+                            participant Airflow as 🌊 Airflow
+                            participant Crawler as 🕷️ 크롤링 서버
+                            participant Processing as 🔄 데이터 처리
+                            participant Storage as 💾 저장소
+
+                            Note over User,Storage: 📊 상품 분석 요청 플로우
+
+                            User->>Web: 1. 분석 요청
+                            Web->>Kafka: 2. 요청 메시지 발행
+                            Web-->>User: 3. 요청 ID 반환
+
+                            Note over Kafka,Airflow: 🌊 워크플로우 시작
+
+                            Kafka->>Airflow: 4. DAG 트리거
+                            Airflow->>Crawler: 5. 크롤링 시작
+
+                            Note over Crawler,Processing: 🔄 데이터 수집 및 처리
+
+                            loop 데이터 수집
+                            Crawler-->>Kafka: 6. 원본 데이터 + 상태
+                            Kafka-->>Web: 7. 실시간 상태 업데이트
+                            Web-->>User: 8. 진행률 표시
+                            end
+
+                            Kafka->>Processing: 9. 데이터 분석 시작
+
+                            loop 분석 처리
+                            Processing-->>Kafka: 10. 분석 결과 + 상태
+                            Kafka-->>Web: 11. 실시간 결과
+                            Web-->>User: 12. 감정 카드 표시
+                            end
+
+                            Processing->>Storage: 13. 최종 결과 저장
+                            Processing-->>Kafka: 14. 완료 알림
+                            Kafka-->>Web: 15. 완료 통지
+                            Web-->>User: 16. 결과 페이지 이동
+
+                            Note over User,Storage: ✅ 분석 완료
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 서비스 관계 -->
+            <div id="services" class="diagram-section">
+                <h2>🛠️ 서비스 간 관계</h2>
+                <div class="description">
+                    <h3>핵심 서비스 간 상호작용</h3>
+                    <p>각 서비스의 역할과 상호작용을 명확하게 정의한 관계도입니다.</p>
+                </div>
+
+                <div class="features">
+                    <div class="feature">
+                        <h4>🎯 Producer/Consumer</h4>
+                        <p>Kafka 기반 비동기 메시징</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔄 API 호출</h4>
+                        <p>동기식 서비스 간 통신</p>
+                    </div>
+                    <div class="feature">
+                        <h4>💾 데이터 저장</h4>
+                        <p>영구 저장소 연결</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔌 실시간 통신</h4>
+                        <p>WebSocket 기반 실시간 업데이트</p>
+                    </div>
+                </div>
+
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+                            graph TB
+                            %% 서비스 정의
+                            subgraph Services["🛠️ 핵심 서비스"]
+                            Backend[🖥️ Backend API<br />• 사용자 요청 처리<br />• Kafka Producer<br />• WebSocket 관리]
+
+                            Kafka[📨 Kafka<br />• 메시지 큐<br />• 이벤트 스트리밍<br />• 서비스 간 통신]
+
+                            Airflow[🌊 Airflow<br />• 워크플로우 관리<br />• DAG 스케줄링<br />• 작업 오케스트레이션]
+
+                            Crawler[🕷️ 크롤링 서버<br />• 데이터 수집<br />• 멀티프로세싱<br />• VPN 연결]
+
+                            Spark[⚡ Spark<br />• 스트리밍 처리<br />• 데이터 전처리<br />• 실시간 분석]
+
+                            Analysis[🧠 LLM 분석<br />• 감정 분석<br />• 텍스트 요약<br />• GPU 처리]
+                            end
+
+                            %% 관계 정의 (단순화)
+                            subgraph Relations["🔗 서비스 관계"]
+                            Backend -->|1. 요청 발행| Kafka
+                            Kafka -->|2. DAG 트리거| Airflow
+                            Airflow -->|3. API 호출| Crawler
+                            Crawler -->|4. 데이터 전송| Kafka
+                            Kafka -->|5. 스트림 처리| Spark
+                            Spark -->|6. 분석 요청| Analysis
+                            Analysis -->|7. 결과 전송| Kafka
+                            Kafka -->|8. 상태 업데이트| Backend
+                            end
+
+                            %% 데이터 저장
+                            subgraph Storage["💾 저장소"]
+                            Redis[🔴 Redis<br />캐시 + 세션]
+                            S3[🪣 S3<br />원본 데이터]
+                            Redshift[🏭 Redshift<br />분석 결과]
+                            end
+
+                            %% 저장소 연결
+                            Backend --> Redis
+                            Crawler --> S3
+                            Analysis --> S3
+                            Analysis --> Redshift
+
+                            %% 스타일링
+                            classDef service fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#000
+                            classDef relation fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
+                            classDef storage fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#000
+
+                            class Backend,Kafka,Airflow,Crawler,Spark,Analysis service
+                            class Relations relation
+                            class Redis,S3,Redshift storage
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clean-note">
+                    <h4>🔗 서비스 관계 요약</h4>
+                    <p><strong>1-2단계:</strong> 사용자 요청 → Kafka → Airflow 트리거<br>
+                        <strong>3-4단계:</strong> Airflow → 크롤링 서버 → 데이터 수집<br>
+                        <strong>5-6단계:</strong> Kafka → Spark 처리 → LLM 분석<br>
+                        <strong>7-8단계:</strong> 분석 결과 → Kafka → 사용자에게 전달
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentZoom = 1;
+
+        // Mermaid 초기화
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: 16,
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 40,
+                nodeSpacing: 100,
+                rankSpacing: 120
+            },
+            sequence: {
+                useMaxWidth: false,
+                width: 180,
+                height: 80,
+                actorMargin: 60,
+                boxMargin: 10,
+                messageMargin: 40
+            }
+        });
+
+        function showDiagram(diagramId) {
+            // 모든 섹션 숨기기
+            const sections = document.querySelectorAll('.diagram-section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // 모든 버튼 비활성화
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 선택된 섹션 표시
+            const targetSection = document.getElementById(diagramId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // 선택된 버튼 활성화
+            event.target.classList.add('active');
+
+            // 줌 리셋
+            resetZoom();
+
+            // 페이지 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            applyZoom();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            applyZoom();
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+
+        function fitToScreen() {
+            const container = document.querySelector('.diagram-section.active .diagram-container');
+            const diagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (container && diagram) {
+                const containerWidth = container.clientWidth - 40;
+                const diagramWidth = diagram.scrollWidth;
+                currentZoom = Math.min(containerWidth / diagramWidth, 1);
+                applyZoom();
+            }
+        }
+
+        function applyZoom() {
+            const activeDiagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (activeDiagram) {
+                activeDiagram.style.transform = `scale(${currentZoom})`;
+            }
+
+            // 줌 레벨 표시 업데이트
+            const zoomDisplay = Math.round(currentZoom * 100);
+            document.querySelector('.zoom-controls .zoom-btn:nth-child(3)').textContent = `${zoomDisplay}%`;
+        }
+
+        // 페이지 로드 완료 후 초기 설정
+        window.addEventListener('load', function () {
+            setTimeout(() => {
+                mermaid.init();
+                setTimeout(fitToScreen, 1000);
+            }, 100);
+        });
+    </script>
+</body>
+
+</html>

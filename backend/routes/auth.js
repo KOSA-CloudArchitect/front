@@ -6,6 +6,13 @@ const { loginLimiter, registerLimiter, checkBlockedIPs } = require('../middlewar
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: 사용자 인증 관련 API
+ */
+
 // 입력 검증 규칙
 const registerValidation = [
   body('email')
@@ -58,6 +65,78 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: 회원가입
+ *     description: 새로운 사용자 계정을 생성합니다.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - confirmPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 사용자 이메일
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: 비밀번호 (대문자, 소문자, 숫자, 특수문자 포함)
+ *                 example: Password123!
+ *               confirmPassword:
+ *                 type: string
+ *                 description: 비밀번호 확인
+ *                 example: Password123!
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *                 default: user
+ *                 description: 사용자 역할
+ *     responses:
+ *       201:
+ *         description: 회원가입 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/AuthResponse'
+ *                 message:
+ *                   type: string
+ *                   example: 회원가입이 완료되었습니다.
+ *       400:
+ *         description: 입력 데이터 검증 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: 이메일 중복
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // 회원가입
 router.post('/register', 
   checkBlockedIPs,
@@ -110,6 +189,74 @@ router.post('/register',
   }
 );
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 로그인
+ *     description: 사용자 인증을 수행하고 JWT 토큰을 발급합니다.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 사용자 이메일
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 description: 사용자 비밀번호
+ *                 example: Password123!
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       type: string
+ *                       description: JWT 액세스 토큰
+ *                     tokenType:
+ *                       type: string
+ *                       example: Bearer
+ *                     expiresIn:
+ *                       type: integer
+ *                       description: 토큰 만료 시간 (초)
+ *                       example: 3600
+ *                 message:
+ *                   type: string
+ *                   example: 로그인 성공
+ *       401:
+ *         description: 인증 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // 로그인
 router.post('/login',
   checkBlockedIPs,
@@ -168,6 +315,57 @@ router.post('/login',
   }
 );
 
+/**
+ * @swagger
+ * /api/auth/refresh:
+ *   post:
+ *     summary: 토큰 갱신
+ *     description: Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: Refresh Token (쿠키로도 전송 가능)
+ *     responses:
+ *       200:
+ *         description: 토큰 갱신 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       type: string
+ *                       description: 새로운 JWT 액세스 토큰
+ *                     tokenType:
+ *                       type: string
+ *                       example: Bearer
+ *                     expiresIn:
+ *                       type: integer
+ *                       example: 3600
+ *                 message:
+ *                   type: string
+ *                   example: 토큰 갱신 성공
+ *       401:
+ *         description: 유효하지 않은 Refresh Token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // 토큰 갱신
 router.post('/refresh', async (req, res) => {
   try {
@@ -226,6 +424,30 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: 로그아웃
+ *     description: 현재 세션을 종료합니다.
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 로그아웃 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 로그아웃되었습니다.
+ */
 // 로그아웃
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
@@ -279,6 +501,38 @@ router.post('/logout-all', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: 현재 사용자 정보 조회
+ *     description: 인증된 사용자의 정보를 조회합니다.
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 사용자 정보 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         description: 인증 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // 현재 사용자 정보 조회
 router.get('/me', authenticateToken, (req, res) => {
   res.json({

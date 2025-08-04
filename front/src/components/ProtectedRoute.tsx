@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useIsAuthenticated, useAuthActions, useAuthLoading } from '../stores/authStore';
+import { useIsAuthenticated, useAuthCheckStatus, useAuthLoading } from '../stores/authStore';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface ProtectedRouteProps {
@@ -16,13 +16,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const isAuthenticated = useIsAuthenticated();
   const isLoading = useAuthLoading();
-  const { checkAuthStatus } = useAuthActions();
+  const checkAuthStatus = useAuthCheckStatus();
   const location = useLocation();
 
   useEffect(() => {
     // 컴포넌트 마운트 시 인증 상태 확인
-    checkAuthStatus();
-  }, [checkAuthStatus]);
+    if (!isAuthenticated && !isLoading) {
+      checkAuthStatus();
+    }
+  }, [isAuthenticated, isLoading, checkAuthStatus]);
 
   // 로딩 중일 때
   if (isLoading) {

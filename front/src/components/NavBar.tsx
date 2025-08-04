@@ -1,7 +1,7 @@
 import { Menu, User, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { useIsAuthenticated, useAuthUser, useAuthActions, useAuthLoading } from "../stores/authStore";
+import { useIsAuthenticated, useAuthUser, useAuthLogout, useAuthCheckStatus, useAuthLoading } from "../stores/authStore";
 import { LoadingSpinner } from "./LoadingSpinner";
 
 interface NavBarProps {
@@ -18,7 +18,8 @@ export default function NavBar({ onMenuClick, title = "KOSA" }: NavBarProps): JS
   const isAuthenticated = useIsAuthenticated();
   const user = useAuthUser();
   const isLoading = useAuthLoading();
-  const { logout, checkAuthStatus } = useAuthActions();
+  const logout = useAuthLogout();
+  const checkAuthStatus = useAuthCheckStatus();
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {

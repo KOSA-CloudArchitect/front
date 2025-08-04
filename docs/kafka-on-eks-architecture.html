@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe Kafka on EKS 아키텍처</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .nav {
+            background: #f1f5f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .nav-btn:hover {
+            background: #2563eb;
+        }
+        
+        .nav-btn.active {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .zoom-btn:hover {
+            background: #4f46e5;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .diagram-section.active {
+            display: block;
+        }
+        
+        .diagram-section h2 {
+            color: #1e293b;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .diagram-container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow: auto;
+            min-height: 700px;
+            position: relative;
+        }
+        
+        .diagram-wrapper {
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+            min-width: 100%;
+        }
+        
+        .mermaid {
+            text-align: center;
+            min-height: 600px;
+        }
+        
+        .mermaid svg {
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 1400px;
+            font-size: 16px !important;
+        }
+        
+        .description {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .k8s-note {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .k8s-note h4 {
+            color: #1565c0;
+            margin: 0 0 10px 0;
+        }
+        
+        .k8s-note p {
+            color: #0d47a1;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ HighPipe Kafka on EKS 아키텍처</h1>
+            <p>EKS 클러스터 내 Kafka 배포 및 운영</p>
+        </div>
+        
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showDiagram('system')">🏢 전체 시스템</button>
+                <button class="nav-btn" onclick="showDiagram('kafka')">📨 Kafka on EKS</button>
+                <button class="nav-btn" onclick="showDiagram('airflow')">🌊 Airflow 구성</button>
+                <button class="nav-btn" onclick="showDiagram('dataflow')">🔄 데이터 플로우</button>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">🔍+</button>
+                <button class="zoom-btn" onclick="zoomOut()">🔍-</button>
+                <button class="zoom-btn" onclick="resetZoom()">100%</button>
+                <button class="zoom-btn" onclick="fitToScreen()">📱 맞춤</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- 전체 시스템 아키텍처 -->
+            <div id="system" class="diagram-section active">
+                <h2>🏢 전체 시스템 아키텍처 (Kafka on EKS)</h2>
+                
+                <div class="k8s-note">
+                    <h4>☸️ Kafka EKS 배포 전략 (ZooKeeper-less)</h4>
+                    <p><strong>KRaft 모드:</strong> Kafka 3.3+ KRaft(Kafka Raft) 사용으로 ZooKeeper 의존성 제거<br>
+                    <strong>StatefulSet:</strong> Kafka 브로커를 StatefulSet으로 배포하여 안정적인 스토리지 보장<br>
+                    <strong>Persistent Volume:</strong> EBS 기반 영구 스토리지 사용<br>
+                    <strong>Controller Nodes:</strong> 일부 브로커가 Controller 역할 겸임</p>
+                </div>
+                
+                <div class="description">
+                    <h3>EKS 클러스터 내 Kafka 배포</h3>
+                    <p>Kafka를 EKS 클러스터 내부에 StatefulSet으로 배포하여 완전한 컨테이너 네이티브 환경을 구축합니다.</p>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h4>🏠 로컬 크롤링</h4>
+                        <p>FastAPI + Selenium, VPN 연결</p>
+                    </div>
+                    <div class="feature">
+                        <h4>📨 Kafka on EKS</h4>
+                        <p>StatefulSet 기반 클러스터 배포</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🌊 Airflow on EKS</h4>
+                        <p>Pod 기반 분산 배포, 확장성 확보</p>
+                    </div>
+                    <div class="feature">
+                        <h4>💾 Persistent Storage</h4>
+                        <p>EBS 기반 영구 볼륨 사용</p>
+                    </div>
+                </div>
+                
+                <div class="diagram-container">
+                    <div class="diagram-wrapper" id="current-diagram">
+                        <div class="mermaid">
+graph TB
+    %% 사용자
+    User[👤 사용자]
+    Internet[🌐 인터넷]
+    
+    %% 로컬 환경
+    subgraph Local["🏠 로컬 환경"]
+        CrawlingServer[🕷️ 크롤링 서버<br/>FastAPI + Selenium<br/>멀티프로세싱]
+        VPNClient[🔒 VPN Client]
+    end
+    
+    %% AWS 클라우드
+    subgraph AWS["☁️ AWS Cloud"]
+        subgraph VPC["🏢 VPC"]
+            VPNGateway[🔒 VPN Gateway]
+            
+            subgraph PublicSubnet["🌐 Public Subnet"]
+                ALB[⚖️ Application Load Balancer]
+                NAT[🚪 NAT Gateway]
+            end
+            
+            subgraph PrivateSubnet["🔒 Private Subnet"]
+                subgraph EKS["☸️ EKS Cluster"]
+                    
+                    %% Web Tier
+                    subgraph WebTier["📱 web-tier namespace"]
+                        Frontend[⚛️ React Frontend<br/>Pods: 3]
+                        Nginx[🔄 Nginx LoadBalancer<br/>Pods: 2]
+                        Ingress[🚪 Ingress Controller]
+                    end
+                    
+                    %% Application Tier
+                    subgraph AppTier["🔧 app-tier namespace"]
+                        BackendAPI[🖥️ Backend API<br/>Node.js + Express<br/>Pods: 3-20 HPA]
+                        WebSocket[🔌 WebSocket Server<br/>Socket.IO<br/>Pods: 2-10 HPA]
+                    end
+                    
+                    %% Airflow Tier
+                    subgraph AirflowTier["🌊 airflow namespace"]
+                        AirflowWebServer[🌐 Airflow WebServer<br/>Pod: 1-3]
+                        AirflowScheduler[📅 Airflow Scheduler<br/>Pod: 1]
+                        AirflowWorker[👷 Airflow Worker<br/>Pods: 2-10 HPA]
+                        GitSync[📦 Git-Sync<br/>DAG 동기화<br/>Pod: 1]
+                    end
+                    
+                    %% Kafka Tier (EKS 내부, KRaft 모드)
+                    subgraph KafkaTier["📨 kafka namespace"]
+                        subgraph KafkaCluster["📨 Kafka 클러스터 (KRaft 모드)"]
+                            Kafka1[📨 kafka-0<br/>Controller + Broker<br/>PVC: kafka-data-0<br/>50Gi EBS<br/>KRaft 모드]
+                            Kafka2[📨 kafka-1<br/>Controller + Broker<br/>PVC: kafka-data-1<br/>50Gi EBS<br/>KRaft 모드]
+                            Kafka3[📨 kafka-2<br/>Controller + Broker<br/>PVC: kafka-data-2<br/>50Gi EBS<br/>KRaft 모드]
+                        end
+                        
+                        KafkaManager[🎛️ Kafka UI<br/>관리 도구<br/>Deployment Pod]
+                        KafkaExporter[📊 Kafka Exporter<br/>Prometheus 메트릭<br/>DaemonSet]
+                        KafkaConnect[🔗 Kafka Connect<br/>외부 시스템 연동<br/>Deployment Pod]
+                    end
+                    
+                    %% Pipeline Tier
+                    subgraph PipelineTier["🔄 pipeline-tier namespace"]
+                        SparkCluster[⚡ Spark Cluster<br/>Streaming Processing<br/>Driver: 1 Executors: 2-10]
+                        AnalysisServer[🧠 LLM Analysis Server<br/>FastAPI + GPU<br/>Pods: 1-5 HPA]
+                    end
+                    
+                    %% Data Tier (Redis만)
+                    subgraph DataTier["💾 data-tier namespace"]
+                        Redis[🔴 Redis Cluster<br/>캐시 + 세션<br/>Master: 1 Slaves: 2]
+                        PostgresProxy[🐘 PostgreSQL Proxy<br/>Connection Pooling]
+                    end
+                    
+                    %% Monitoring
+                    subgraph Monitoring["📊 monitoring namespace"]
+                        Prometheus[📈 Prometheus<br/>메트릭 수집<br/>Pod: 1]
+                        Grafana[📊 Grafana<br/>시각화<br/>Pod: 1]
+                        AlertManager[🚨 AlertManager<br/>알림<br/>Pod: 1]
+                    end
+                end
+            end
+        end
+        
+        %% AWS 관리형 서비스
+        subgraph ManagedServices["🛠️ AWS 관리형 서비스"]
+            RDSWeb[🗄️ RDS PostgreSQL<br/>웹 서비스 DB<br/>Multi-AZ]
+            RDSAirflow[🗄️ RDS PostgreSQL<br/>Airflow 메타데이터 DB<br/>Multi-AZ]
+            S3DataLake[🪣 S3 Data Lake<br/>원본 리뷰 데이터<br/>파티션 구조]
+            S3Logs[🪣 S3 Airflow Logs<br/>로그 저장소]
+            Redshift[🏭 Redshift<br/>Data Warehouse<br/>분석 결과 저장]
+            ECR[📦 ECR<br/>Container Registry]
+            SecretsManager[🔐 Secrets Manager<br/>인증 정보 관리]
+            CloudWatch[📊 CloudWatch<br/>로그 + 메트릭]
+            EBS[💾 EBS Volumes<br/>Kafka/ZK 영구 스토리지]
+        end
+    end
+    
+    %% 연결 관계
+    User --> Internet
+    Internet --> ALB
+    ALB --> Ingress
+    Ingress --> Frontend
+    Ingress --> BackendAPI
+    Ingress --> AirflowWebServer
+    Ingress --> KafkaManager
+    
+    %% 웹 서비스 내부 통신
+    Frontend --> BackendAPI
+    BackendAPI --> WebSocket
+    BackendAPI --> Redis
+    BackendAPI --> PostgresProxy
+    BackendAPI --> Kafka1
+    
+    %% VPN 연결
+    VPNClient -.->|VPN 터널| VPNGateway
+    CrawlingServer --> VPNClient
+    VPNGateway --> Kafka2
+    
+    %% Airflow 구성
+    AirflowScheduler --> AirflowWorker
+    AirflowWebServer --> RDSAirflow
+    AirflowScheduler --> RDSAirflow
+    AirflowWorker --> RDSAirflow
+    GitSync --> AirflowScheduler
+    AirflowWorker --> S3Logs
+    
+    %% Airflow 워크플로우
+    AirflowWorker -.->|API 호출| CrawlingServer
+    AirflowWorker --> SparkCluster
+    AirflowWorker --> AnalysisServer
+    
+    %% Kafka 클러스터 내부 통신 (KRaft 모드)
+    Kafka1 --> Kafka2
+    Kafka2 --> Kafka3
+    Kafka3 --> Kafka1
+    
+    %% 데이터 플로우
+    CrawlingServer -.->|VPN| Kafka2
+    Kafka2 --> SparkCluster
+    SparkCluster --> Kafka3
+    Kafka3 --> AnalysisServer
+    AnalysisServer --> Kafka1
+    Kafka1 --> BackendAPI
+    
+    %% 데이터 저장
+    CrawlingServer -.->|VPN| S3DataLake
+    SparkCluster --> S3DataLake
+    SparkCluster --> Redshift
+    AnalysisServer --> Redshift
+    
+    %% 영구 스토리지
+    Kafka1 --> EBS
+    Kafka2 --> EBS
+    Kafka3 --> EBS
+    
+    %% 데이터베이스 연결
+    PostgresProxy --> RDSWeb
+    
+    %% 모니터링
+    KafkaExporter --> Prometheus
+    Prometheus --> BackendAPI
+    Prometheus --> Kafka1
+    Prometheus --> Redis
+    Prometheus --> AirflowScheduler
+    Grafana --> Prometheus
+    AlertManager --> Prometheus
+    
+    %% 외부 서비스 연결
+    BackendAPI --> SecretsManager
+    AirflowScheduler --> SecretsManager
+    AnalysisServer --> S3DataLake
+    
+    %% 로깅
+    BackendAPI --> CloudWatch
+    AirflowScheduler --> CloudWatch
+    AnalysisServer --> CloudWatch
+    Kafka1 --> CloudWatch
+    CrawlingServer -.->|VPN| CloudWatch
+    
+    %% 스타일링
+    classDef local fill:#FFF2CC,stroke:#D6B656,stroke-width:3px,color:#000
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef k8s fill:#326CE5,stroke:#fff,stroke-width:2px,color:#fff
+    classDef app fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef data fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    classDef monitor fill:#FF5722,stroke:#fff,stroke-width:2px,color:#fff
+    classDef airflow fill:#017CEE,stroke:#fff,stroke-width:2px,color:#fff
+    classDef kafka fill:#E91E63,stroke:#fff,stroke-width:2px,color:#fff
+    classDef zk fill:#795548,stroke:#fff,stroke-width:2px,color:#fff
+    classDef vpn fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    classDef storage fill:#607D8B,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class Local,CrawlingServer local
+    class AWS,ManagedServices aws
+    class EKS,WebTier,AppTier,PipelineTier,DataTier k8s
+    class Frontend,BackendAPI,WebSocket,AnalysisServer app
+    class Redis,PostgresProxy,RDSWeb,S3DataLake,S3Logs,Redshift data
+    class Monitoring,Prometheus,Grafana,AlertManager monitor
+    class AirflowTier,AirflowWebServer,AirflowScheduler,AirflowWorker,GitSync airflow
+    class KafkaTier,Kafka1,Kafka2,Kafka3,KafkaManager,KafkaExporter kafka
+    class ZK1,ZK2,ZK3 zk
+    class VPNClient,VPNGateway vpn
+    class EBS storage
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kafka on EKS -->
+            <div id="kafka" class="diagram-section">
+                <h2>📨 Kafka on EKS 상세 구성</h2>
+                <div class="description">
+                    <h3>KRaft 모드 Kafka 클러스터 (ZooKeeper-less)</h3>
+                    <p>EKS 클러스터 내에서 StatefulSet으로 배포되는 KRaft 모드 Kafka의 상세 구성입니다. ZooKeeper 없이 운영됩니다.</p>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h4>📨 Kafka StatefulSet</h4>
+                        <p>3개 브로커, 각각 50Gi EBS 볼륨</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🎯 KRaft 모드</h4>
+                        <p>ZooKeeper 없는 Kafka 3.3+ 사용</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🎛️ 관리 도구</h4>
+                        <p>Kafka Manager UI, Prometheus Exporter</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔧 Helm 배포</h4>
+                        <p>Strimzi Operator (KRaft 지원) 권장</p>
+                    </div>
+                </div>
+                
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+graph TB
+    %% Kafka Namespace (KRaft 모드)
+    subgraph KafkaNamespace["📨 kafka namespace"]
+        
+        %% Kafka StatefulSet (KRaft 모드)
+        subgraph KafkaStatefulSet["📨 Kafka StatefulSet (KRaft 모드)"]
+            subgraph KafkaPod1["kafka-0 Pod"]
+                KafkaContainer1[📨 Kafka Container<br/>Image: apache/kafka:3.6.0<br/>Port: 9092, 9093<br/>Role: Controller + Broker<br/>JVM Heap: 2Gi<br/>KRaft 모드]
+                KafkaVolume1[💾 kafka-data-0<br/>PVC: 50Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/data]
+                KafkaLogVolume1[📝 kafka-logs-0<br/>PVC: 10Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/logs]
+            end
+            
+            subgraph KafkaPod2["kafka-1 Pod"]
+                KafkaContainer2[📨 Kafka Container<br/>Image: apache/kafka:3.6.0<br/>Port: 9092, 9093<br/>Role: Controller + Broker<br/>JVM Heap: 2Gi<br/>KRaft 모드]
+                KafkaVolume2[💾 kafka-data-1<br/>PVC: 50Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/data]
+                KafkaLogVolume2[📝 kafka-logs-1<br/>PVC: 10Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/logs]
+            end
+            
+            subgraph KafkaPod3["kafka-2 Pod"]
+                KafkaContainer3[📨 Kafka Container<br/>Image: apache/kafka:3.6.0<br/>Port: 9092, 9093<br/>Role: Controller + Broker<br/>JVM Heap: 2Gi<br/>KRaft 모드]
+                KafkaVolume3[💾 kafka-data-2<br/>PVC: 50Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/data]
+                KafkaLogVolume3[📝 kafka-logs-2<br/>PVC: 10Gi<br/>StorageClass: gp3<br/>Mount: /var/lib/kafka/logs]
+            end
+        end
+        
+        %% Services
+        subgraph KafkaServices["🌐 Kubernetes Services"]
+            KafkaHeadlessService[📨 kafka-headless<br/>ClusterIP: None<br/>Ports: 9092, 9093<br/>StatefulSet DNS]
+            KafkaService[📨 kafka-service<br/>ClusterIP<br/>Port: 9092<br/>Load Balancer]
+            KafkaControllerService[🎯 kafka-controller<br/>ClusterIP<br/>Port: 9093<br/>Controller Access]
+        end
+        
+        %% Management Tools
+        subgraph ManagementTools["🛠️ 관리 도구"]
+            KafkaUI[🎛️ Kafka UI<br/>Deployment<br/>Image: provectuslabs/kafka-ui<br/>Port: 8080]
+            KafkaExporter[📊 Kafka Exporter<br/>DaemonSet<br/>Image: danielqsj/kafka-exporter<br/>Port: 9308]
+            KafkaConnect[🔗 Kafka Connect<br/>Deployment<br/>Image: confluentinc/cp-kafka-connect<br/>Port: 8083]
+        end
+        
+        %% ConfigMaps and Secrets
+        subgraph Configuration["⚙️ 설정"]
+            KafkaConfigMap[📋 kafka-config<br/>ConfigMap<br/>server.properties<br/>kraft.properties<br/>log4j.properties]
+            KafkaSecret[🔐 kafka-secret<br/>Secret<br/>SASL credentials<br/>SSL certificates<br/>Controller quorum]
+        end
+    end
+    
+    %% External Connections
+    subgraph ExternalSystems["🔗 외부 시스템"]
+        BackendAPI[🖥️ Backend API<br/>Producer/Consumer]
+        AirflowWorker[🌊 Airflow Worker<br/>Consumer]
+        SparkCluster[⚡ Spark Cluster<br/>Consumer/Producer]
+        AnalysisServer[🧠 Analysis Server<br/>Producer]
+        LocalCrawler[🏠 로컬 크롤링 서버<br/>Producer via VPN]
+    end
+    
+    %% KRaft 클러스터 내부 통신
+    KafkaContainer1 --> KafkaContainer2
+    KafkaContainer2 --> KafkaContainer3
+    KafkaContainer3 --> KafkaContainer1
+    
+    KafkaHeadlessService --> KafkaContainer1
+    KafkaHeadlessService --> KafkaContainer2
+    KafkaHeadlessService --> KafkaContainer3
+    
+    KafkaService --> KafkaContainer1
+    KafkaService --> KafkaContainer2
+    KafkaService --> KafkaContainer3
+    
+    KafkaControllerService --> KafkaContainer1
+    KafkaControllerService --> KafkaContainer2
+    KafkaControllerService --> KafkaContainer3
+    
+    KafkaUI --> KafkaService
+    KafkaExporter --> KafkaService
+    KafkaConnect --> KafkaService
+    
+    KafkaConfigMap --> KafkaContainer1
+    KafkaConfigMap --> KafkaContainer2
+    KafkaConfigMap --> KafkaContainer3
+    
+    KafkaSecret --> KafkaContainer1
+    KafkaSecret --> KafkaContainer2
+    KafkaSecret --> KafkaContainer3
+    
+    %% External connections
+    BackendAPI --> KafkaService
+    AirflowWorker --> KafkaService
+    SparkCluster --> KafkaService
+    AnalysisServer --> KafkaService
+    LocalCrawler -.->|VPN| KafkaService
+    
+    %% Storage connections
+    KafkaContainer1 --> KafkaVolume1
+    KafkaContainer1 --> KafkaLogVolume1
+    KafkaContainer2 --> KafkaVolume2
+    KafkaContainer2 --> KafkaLogVolume2
+    KafkaContainer3 --> KafkaVolume3
+    KafkaContainer3 --> KafkaLogVolume3
+    
+    %% Styling
+    classDef kafkaPod fill:#E91E63,stroke:#fff,stroke-width:2px,color:#fff
+    classDef volume fill:#607D8B,stroke:#fff,stroke-width:2px,color:#fff
+    classDef service fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+    classDef management fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+    classDef config fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+    classDef external fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class KafkaContainer1,KafkaContainer2,KafkaContainer3 kafkaPod
+    class KafkaVolume1,KafkaVolume2,KafkaVolume3,KafkaLogVolume1,KafkaLogVolume2,KafkaLogVolume3 volume
+    class KafkaHeadlessService,KafkaService,KafkaControllerService service
+    class KafkaUI,KafkaExporter,KafkaConnect management
+    class KafkaConfigMap,KafkaSecret config
+    class BackendAPI,AirflowWorker,SparkCluster,AnalysisServer,LocalCrawler external
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="k8s-note">
+                    <h4>📨 Kafka KRaft 모드 EKS 배포 설정</h4>
+                    <p><strong>Operator:</strong> Strimzi Kafka Operator (KRaft 모드 지원)<br>
+                    <strong>Resource Limits:</strong> Kafka Controller+Broker (CPU: 1000m, Memory: 3Gi)<br>
+                    <strong>Storage Class:</strong> gp3 (고성능 SSD), 데이터 + 로그 볼륨 분리<br>
+                    <strong>Controller Quorum:</strong> 3개 노드 모두 Controller 역할 수행<br>
+                    <strong>Network Policy:</strong> 네임스페이스 간 통신 제어 및 보안 강화</p>
+                </div>
+            </div>
+            
+            <!-- Airflow 구성 -->
+            <div id="airflow" class="diagram-section">
+                <h2>🌊 Airflow EKS 구성</h2>
+                <div class="description">
+                    <h3>Pod 기반 Airflow 분산 배포</h3>
+                    <p>EKS 내 Airflow 구성으로 Kafka와 동일한 클러스터에서 운영됩니다.</p>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+graph TB
+    %% Airflow 네임스페이스 (간단 버전)
+    subgraph AirflowNamespace["🌊 airflow namespace"]
+        AirflowWebServer[🌐 Airflow WebServer<br/>Pod: 1-3]
+        AirflowScheduler[📅 Airflow Scheduler<br/>Pod: 1]
+        AirflowWorker[👷 Airflow Worker<br/>Pods: 2-10 HPA]
+        GitSync[📦 Git-Sync<br/>DAG 동기화<br/>Pod: 1]
+    end
+    
+    %% Kafka 연결
+    subgraph KafkaConnection["📨 Kafka 연결"]
+        KafkaService[📨 kafka-service.kafka.svc.cluster.local:9092]
+    end
+    
+    %% 외부 서비스
+    subgraph ExternalServices["🛠️ 외부 서비스"]
+        RDSAirflow[🗄️ RDS PostgreSQL<br/>Airflow 메타데이터 DB]
+        S3Logs[🪣 S3 Airflow Logs<br/>로그 저장소]
+        LocalCrawler[🏠 로컬 크롤링 서버<br/>VPN 연결]
+    end
+    
+    %% 연결
+    AirflowScheduler --> AirflowWorker
+    AirflowWebServer --> RDSAirflow
+    AirflowScheduler --> RDSAirflow
+    AirflowWorker --> RDSAirflow
+    GitSync --> AirflowScheduler
+    AirflowWorker --> S3Logs
+    AirflowWorker --> KafkaService
+    AirflowWorker -.->|API 호출| LocalCrawler
+    
+    classDef airflow fill:#017CEE,stroke:#fff,stroke-width:2px,color:#fff
+    classDef kafka fill:#E91E63,stroke:#fff,stroke-width:2px,color:#fff
+    classDef external fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+    
+    class AirflowWebServer,AirflowScheduler,AirflowWorker,GitSync airflow
+    class KafkaService kafka
+    class RDSAirflow,S3Logs,LocalCrawler external
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 데이터 플로우 -->
+            <div id="dataflow" class="diagram-section">
+                <h2>🔄 데이터 플로우 (Kafka on EKS)</h2>
+                <div class="description">
+                    <h3>EKS 내 Kafka를 통한 데이터 처리</h3>
+                    <p>모든 컴포넌트가 EKS 클러스터 내에서 통신하는 완전한 컨테이너 네이티브 환경입니다.</p>
+                </div>
+                <div class="diagram-container">
+                    <div class="diagram-wrapper">
+                        <div class="mermaid">
+sequenceDiagram
+    participant User as 👤 사용자
+    participant Frontend as ⚛️ Frontend
+    participant API as 🖥️ Backend API
+    participant WS as 🔌 WebSocket
+    participant Kafka as 📨 Kafka on EKS
+    participant Airflow as 🌊 Airflow
+    participant LocalCrawler as 🏠 로컬 크롤링 서버
+    participant Spark as ⚡ Spark
+    participant Analysis as 🧠 Analysis
+    participant S3 as 🪣 S3
+    participant Redshift as 🏭 Redshift
+    participant RDS as 🗄️ RDS
+    participant Redis as 🔴 Redis
+    
+    User->>Frontend: 상품 분석 요청
+    Frontend->>API: POST /api/analysis/start
+    API->>Kafka: 분석 요청 메시지 발행<br/>Topic: analysis-requests
+    API->>Redis: 요청 상태 캐싱
+    API-->>Frontend: 분석 ID 반환
+    
+    Frontend->>WS: WebSocket 연결 (분석 ID)
+    
+    Kafka->>Airflow: Consumer: analysis-requests<br/>DAG 트리거
+    Airflow->>LocalCrawler: VPN을 통한 API 호출
+    
+    Note over LocalCrawler: 멀티프로세싱 크롤링 실행
+    
+    loop 크롤링 진행
+        LocalCrawler-->>Kafka: VPN → Producer: crawling-status
+        Kafka->>API: Consumer: crawling-status
+        API->>WS: 실시간 상태 전송
+        WS-->>Frontend: 진행률 업데이트
+    end
+    
+    LocalCrawler-->>S3: VPN을 통한 원본 데이터 저장
+    LocalCrawler-->>Kafka: VPN → Producer: raw-review-data
+    
+    Kafka->>Spark: Consumer: raw-review-data<br/>KubernetesPodOperator
+    Spark->>S3: 전처리된 데이터 저장
+    Spark->>Kafka: Producer: processed-review-data
+    
+    Kafka->>Analysis: Consumer: processed-review-data<br/>KubernetesPodOperator
+    
+    loop 분석 진행
+        Analysis->>Kafka: Producer: analysis-status
+        Kafka->>API: Consumer: analysis-status
+        API->>WS: 실시간 상태 전송
+        WS-->>Frontend: 분석 진행률
+        
+        Analysis->>Kafka: Producer: sentiment-cards
+        Kafka->>API: Consumer: sentiment-cards
+        API->>Redis: 카드 데이터 임시 저장
+        API->>WS: 실시간 카드 전송
+        WS-->>Frontend: 감정 카드 표시
+    end
+    
+    Analysis->>Redshift: 최종 분석 결과 저장
+    Analysis->>RDS: 웹 서비스용 결과 저장
+    Analysis->>Kafka: Producer: analysis-results
+    Kafka->>API: Consumer: analysis-results
+    API->>WS: 분석 완료 알림
+    WS-->>Frontend: 결과 페이지로 이동
+    
+    Frontend->>API: GET /api/analysis/{id}/results
+    API->>RDS: 분석 결과 조회
+    API->>Redis: 결과 캐싱
+    API-->>Frontend: 분석 결과 반환
+    
+    Note over Kafka: EKS 내 Kafka 클러스터<br/>- StatefulSet 배포<br/>- 영구 볼륨 사용<br/>- 클러스터 내부 통신
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentZoom = 1;
+        
+        // Mermaid 초기화
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: 16,
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 30,
+                nodeSpacing: 80,
+                rankSpacing: 100
+            },
+            sequence: {
+                useMaxWidth: false,
+                width: 200,
+                height: 100,
+                actorMargin: 80,
+                boxMargin: 15,
+                messageMargin: 50
+            }
+        });
+
+        function showDiagram(diagramId) {
+            // 모든 섹션 숨기기
+            const sections = document.querySelectorAll('.diagram-section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 모든 버튼 비활성화
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 선택된 섹션 표시
+            const targetSection = document.getElementById(diagramId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+            
+            // 선택된 버튼 활성화
+            event.target.classList.add('active');
+            
+            // 줌 리셋
+            resetZoom();
+            
+            // 페이지 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function fitToScreen() {
+            const container = document.querySelector('.diagram-section.active .diagram-container');
+            const diagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (container && diagram) {
+                const containerWidth = container.clientWidth - 40;
+                const diagramWidth = diagram.scrollWidth;
+                currentZoom = Math.min(containerWidth / diagramWidth, 1);
+                applyZoom();
+            }
+        }
+        
+        function applyZoom() {
+            const activeDiagram = document.querySelector('.diagram-section.active .diagram-wrapper');
+            if (activeDiagram) {
+                activeDiagram.style.transform = `scale(${currentZoom})`;
+            }
+            
+            // 줌 레벨 표시 업데이트
+            const zoomDisplay = Math.round(currentZoom * 100);
+            document.querySelector('.zoom-controls .zoom-btn:nth-child(3)').textContent = `${zoomDisplay}%`;
+        }
+        
+        // 페이지 로드 완료 후 초기 설정
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                mermaid.init();
+                setTimeout(fitToScreen, 1000);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

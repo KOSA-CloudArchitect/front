@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighPipe EKS 아키텍처 다이어그램</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .nav {
+            background: #f1f5f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .nav-btn.active {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            z-index: 10;
+        }
+
+        .zoom-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .zoom-btn:hover {
+            background: #4f46e5;
+        }
+
+        .diagram-wrapper {
+            position: relative;
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .diagram-section.active {
+            display: block;
+        }
+
+        .diagram-section h2 {
+            color: #1e293b;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .diagram-container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            min-height: 600px;
+        }
+
+        .mermaid {
+            text-align: center;
+            min-height: 500px;
+        }
+
+        .mermaid svg {
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 1200px;
+            font-size: 14px !important;
+        }
+
+        .description {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .description h3 {
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+
+        .feature h4 {
+            margin: 0 0 8px 0;
+            color: #059669;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .feature p {
+            margin: 0;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .nav {
+                padding: 15px 20px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .nav-buttons {
+                justify-content: center;
+            }
+
+            .nav-btn {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ HighPipe EKS 아키텍처</h1>
+            <p>Kubernetes 기반 데이터 파이프라인 자동화 시스템</p>
+        </div>
+
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showDiagram('system')">🏢 전체 시스템</button>
+                <button class="nav-btn" onclick="showDiagram('nodes')">🖥️ 노드 그룹</button>
+                <button class="nav-btn" onclick="showDiagram('dataflow')">🔄 데이터 플로우</button>
+                <button class="nav-btn" onclick="showDiagram('security')">🛡️ 네트워크 보안</button>
+                <button class="nav-btn" onclick="showDiagram('scaling')">📈 Auto Scaling</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- 전체 시스템 아키텍처 -->
+            <div id="system" class="diagram-section active">
+                <h2>🏢 전체 시스템 아키텍처</h2>
+                <div class="description">
+                    <h3>개요</h3>
+                    <p>EKS 클러스터를 중심으로 한 마이크로서비스 아키텍처입니다. 네임스페이스별로 서비스를 분리하여 관리하며, AWS 관리형 서비스와 연동됩니다.</p>
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <h4>📱 Web Tier</h4>
+                        <p>React 프론트엔드, Nginx 로드밸런서, Ingress Controller</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔧 App Tier</h4>
+                        <p>Backend API, WebSocket 서버, Airflow 클러스터</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔄 Pipeline Tier</h4>
+                        <p>크롤링 서버, LLM 분석 서버, Spark 클러스터</p>
+                    </div>
+                    <div class="feature">
+                        <h4>💾 Data Tier</h4>
+                        <p>Kafka 클러스터, Redis, PostgreSQL 프록시</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="mermaid">
+                        graph TB
+                        %% External Components
+                        User[👤 사용자]
+                        Internet[🌐 인터넷]
+
+                        %% AWS Services
+                        subgraph AWS["☁️ AWS Cloud"]
+                        subgraph VPC["🏢 VPC"]
+                        subgraph PublicSubnet["🌐 Public Subnet"]
+                        ALB[⚖️ Application Load Balancer]
+                        NAT[🚪 NAT Gateway]
+                        end
+
+                        subgraph PrivateSubnet["🔒 Private Subnet"]
+                        subgraph EKS["☸️ EKS Cluster"]
+
+                        %% Web Tier Namespace
+                        subgraph WebTier["📱 web-tier namespace"]
+                        Frontend[⚛️ React Frontend<br />Pods: 3]
+                        Nginx[🔄 Nginx LoadBalancer<br />Pods: 2]
+                        Ingress[🚪 Ingress Controller]
+                        end
+
+                        %% Application Tier Namespace
+                        subgraph AppTier["🔧 app-tier namespace"]
+                        BackendAPI[🖥️ Backend API<br />Node.js<br />Pods: 3-20 HPA]
+                        WebSocket[🔌 WebSocket Server<br />Pods: 2-10 HPA]
+
+                        subgraph AirflowCluster["🌊 Airflow Cluster"]
+                        AirflowScheduler[📅 Scheduler<br />Pod: 1]
+                        AirflowWebserver[🌐 Webserver<br />Pods: 2]
+                        AirflowWorker[👷 Workers<br />Pods: 2-10 HPA]
+                        end
+                        end
+
+                        %% Pipeline Tier Namespace
+                        subgraph PipelineTier["🔄 pipeline-tier namespace"]
+                        CrawlingServer[🕷️ Crawling Server<br />FastAPI + Selenium<br />Pods: 2-8 HPA]
+                        AnalysisServer[🧠 LLM Analysis Server<br />FastAPI + GPU<br />Pods: 1-5 HPA]
+                        SparkCluster[⚡ Spark Cluster<br />Driver: 1 Executors: 2-10]
+                        end
+
+                        %% Data Tier Namespace
+                        subgraph DataTier["💾 data-tier namespace"]
+                        subgraph KafkaCluster["📨 Kafka Cluster"]
+                        Kafka1[📨 Kafka Broker 1]
+                        Kafka2[📨 Kafka Broker 2]
+                        Kafka3[📨 Kafka Broker 3]
+                        Zookeeper[🐘 Zookeeper<br />Pods: 3]
+                        end
+
+                        Redis[🔴 Redis Cluster<br />Master: 1 Slaves: 2]
+                        PostgresProxy[🐘 PostgreSQL Proxy<br />Connection Pooling]
+                        end
+
+                        %% Monitoring Namespace
+                        subgraph Monitoring["📊 monitoring namespace"]
+                        Prometheus[📈 Prometheus<br />Pod: 1]
+                        Grafana[📊 Grafana<br />Pod: 1]
+                        AlertManager[🚨 AlertManager<br />Pod: 1]
+                        end
+                        end
+                        end
+                        end
+
+                        %% Managed AWS Services
+                        subgraph ManagedServices["🛠️ AWS Managed Services"]
+                        RDS[🗄️ RDS PostgreSQL<br />Multi-AZ]
+                        S3[🪣 S3 Data Lake<br />Raw Data Storage]
+                        Redshift[🏭 Redshift<br />Data Warehouse]
+                        ECR[📦 ECR<br />Container Registry]
+                        SecretsManager[🔐 Secrets Manager]
+                        CloudWatch[📊 CloudWatch Logs]
+                        end
+                        end
+
+                        %% Connections
+                        User --> Internet
+                        Internet --> ALB
+                        ALB --> Ingress
+                        Ingress --> Frontend
+                        Ingress --> BackendAPI
+                        Ingress --> AirflowWebserver
+
+                        Frontend --> BackendAPI
+                        BackendAPI --> WebSocket
+                        BackendAPI --> Redis
+                        BackendAPI --> PostgresProxy
+                        BackendAPI --> Kafka1
+
+                        AirflowScheduler --> AirflowWorker
+                        AirflowWorker --> CrawlingServer
+                        AirflowWorker --> AnalysisServer
+                        AirflowWorker --> SparkCluster
+
+                        CrawlingServer --> Kafka2
+                        AnalysisServer --> Kafka3
+                        SparkCluster --> S3
+                        SparkCluster --> Redshift
+
+                        Kafka1 --> Zookeeper
+                        Kafka2 --> Zookeeper
+                        Kafka3 --> Zookeeper
+
+                        PostgresProxy --> RDS
+
+                        %% Monitoring connections
+                        Prometheus --> BackendAPI
+                        Prometheus --> Kafka1
+                        Prometheus --> Redis
+                        Grafana --> Prometheus
+                        AlertManager --> Prometheus
+
+                        %% External connections
+                        BackendAPI --> SecretsManager
+                        CrawlingServer --> S3
+                        AnalysisServer --> S3
+
+                        %% Logging
+                        BackendAPI --> CloudWatch
+                        CrawlingServer --> CloudWatch
+                        AnalysisServer --> CloudWatch
+
+                        %% Styling
+                        classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+                        classDef k8s fill:#326CE5,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef app fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef data fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef monitor fill:#FF5722,stroke:#fff,stroke-width:2px,color:#fff
+
+                        class AWS,ManagedServices aws
+                        class EKS,WebTier,AppTier,PipelineTier,DataTier k8s
+                        class Frontend,BackendAPI,WebSocket,CrawlingServer,AnalysisServer app
+                        class KafkaCluster,Redis,PostgresProxy,RDS,S3,Redshift data
+                        class Monitoring,Prometheus,Grafana,AlertManager monitor
+                    </div>
+                </div>
+            </div>
+
+            <!-- 노드 그룹 구성 -->
+            <div id="nodes" class="diagram-section">
+                <h2>🖥️ 노드 그룹 구성</h2>
+                <div class="description">
+                    <h3>노드 그룹 전략</h3>
+                    <p>워크로드 특성에 따라 4개의 노드 그룹으로 분리하여 비용 효율성과 성능을 최적화합니다.</p>
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <h4>💻 General Node Group</h4>
+                        <p>일반적인 웹 서비스 워크로드 (m5.large/xlarge)</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🎮 GPU Node Group</h4>
+                        <p>LLM 분석 전용 GPU 인스턴스 (g4dn.xlarge/2xlarge)</p>
+                    </div>
+                    <div class="feature">
+                        <h4>💾 Data Node Group</h4>
+                        <p>메모리 집약적 데이터 처리 (r5.large/xlarge)</p>
+                    </div>
+                    <div class="feature">
+                        <h4>💰 Spot Node Group</h4>
+                        <p>배치 처리용 비용 절약 인스턴스</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="mermaid">
+                        graph TB
+                        subgraph EKSCluster["☸️ EKS Cluster"]
+                        subgraph GeneralNodeGroup["🖥️ General Node Group"]
+                        GeneralNode1[💻 m5.large<br />General Workload<br />2-4 vCPU 8-16GB RAM]
+                        GeneralNode2[💻 m5.xlarge<br />General Workload<br />4 vCPU 16GB RAM]
+                        GeneralNode3[💻 m5.large<br />General Workload<br />2-4 vCPU 8-16GB RAM]
+                        end
+
+                        subgraph GPUNodeGroup["🎮 GPU Node Group"]
+                        GPUNode1[🎮 g4dn.xlarge<br />LLM Analysis<br />4 vCPU 16GB RAM<br />1x NVIDIA T4]
+                        GPUNode2[🎮 g4dn.2xlarge<br />LLM Analysis<br />8 vCPU 32GB RAM<br />1x NVIDIA T4]
+                        end
+
+                        subgraph DataNodeGroup["💾 Data Processing Node Group"]
+                        DataNode1[💾 r5.large<br />Memory Intensive<br />2 vCPU 16GB RAM]
+                        DataNode2[💾 r5.xlarge<br />Memory Intensive<br />4 vCPU 32GB RAM]
+                        end
+
+                        subgraph SpotNodeGroup["💰 Spot Node Group"]
+                        SpotNode1[💰 m5.large Spot<br />Batch Processing<br />2-4 vCPU 8-16GB RAM]
+                        SpotNode2[💰 c5.xlarge Spot<br />CPU Intensive<br />4 vCPU 8GB RAM]
+                        end
+                        end
+
+                        %% Workload placement
+                        GeneralNode1 --> Frontend
+                        GeneralNode1 --> BackendAPI
+                        GeneralNode2 --> WebSocket
+                        GeneralNode2 --> AirflowWebserver
+                        GeneralNode3 --> Nginx
+                        GeneralNode3 --> Ingress
+
+                        GPUNode1 --> AnalysisServer
+                        GPUNode2 --> MLTraining[🤖 ML Model Training]
+
+                        DataNode1 --> Kafka
+                        DataNode1 --> Redis
+                        DataNode2 --> SparkDriver[⚡ Spark Driver]
+
+                        SpotNode1 --> CrawlingServer
+                        SpotNode1 --> SparkExecutor[⚡ Spark Executors]
+                        SpotNode2 --> BatchJobs[📦 Batch Processing Jobs]
+
+                        classDef general fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef gpu fill:#FF5722,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef data fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef spot fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+
+                        class GeneralNode1,GeneralNode2,GeneralNode3 general
+                        class GPUNode1,GPUNode2 gpu
+                        class DataNode1,DataNode2 data
+                        class SpotNode1,SpotNode2 spot
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 플로우 -->
+            <div id="dataflow" class="diagram-section">
+                <h2>🔄 데이터 플로우</h2>
+                <div class="description">
+                    <h3>실시간 데이터 처리 흐름</h3>
+                    <p>사용자 요청부터 분석 결과 반환까지의 전체 데이터 플로우를 보여줍니다. Kafka와 WebSocket을 통한 실시간 처리가 핵심입니다.</p>
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <h4>📨 비동기 메시징</h4>
+                        <p>Kafka를 통한 느슨한 결합과 확장성 확보</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔌 실시간 통신</h4>
+                        <p>WebSocket으로 진행 상태 실시간 업데이트</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔴 캐싱 전략</h4>
+                        <p>Redis를 통한 빠른 데이터 접근</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🌊 워크플로우 관리</h4>
+                        <p>Airflow DAG 기반 작업 오케스트레이션</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="mermaid">
+                        sequenceDiagram
+                        participant User as 👤 사용자
+                        participant Frontend as ⚛️ Frontend
+                        participant API as 🖥️ Backend API
+                        participant WS as 🔌 WebSocket
+                        participant Kafka as 📨 Kafka
+                        participant Airflow as 🌊 Airflow
+                        participant Crawler as 🕷️ Crawler
+                        participant Analysis as 🧠 Analysis
+                        participant DB as 🗄️ Database
+                        participant Cache as 🔴 Redis
+
+                        User->>Frontend: 상품 분석 요청
+                        Frontend->>API: POST /api/analysis/start
+                        API->>Kafka: 분석 요청 메시지 발행
+                        API->>Cache: 요청 상태 캐싱
+                        API-->>Frontend: 분석 ID 반환
+
+                        Frontend->>WS: WebSocket 연결 (분석 ID)
+
+                        Kafka->>Airflow: 메시지 수신 및 DAG 트리거
+                        Airflow->>Crawler: 크롤링 작업 시작
+
+                        loop 크롤링 진행
+                        Crawler->>Kafka: 진행 상태 업데이트
+                        Kafka->>API: 상태 메시지 수신
+                        API->>WS: 실시간 상태 전송
+                        WS-->>Frontend: 진행률 업데이트
+                        end
+
+                        Crawler->>Kafka: 수집된 리뷰 데이터
+                        Kafka->>Analysis: 분석 작업 시작
+
+                        loop 분석 진행
+                        Analysis->>Kafka: 분석 진행 상태
+                        Kafka->>API: 상태 메시지 수신
+                        API->>WS: 실시간 상태 전송
+                        WS-->>Frontend: 분석 진행률
+
+                        Analysis->>Kafka: 개별 감정 카드 결과
+                        Kafka->>API: 카드 데이터 수신
+                        API->>Cache: 카드 데이터 임시 저장
+                        API->>WS: 실시간 카드 전송
+                        WS-->>Frontend: 감정 카드 표시
+                        end
+
+                        Analysis->>DB: 최종 분석 결과 저장
+                        Analysis->>Kafka: 분석 완료 알림
+                        Kafka->>API: 완료 메시지 수신
+                        API->>WS: 분석 완료 알림
+                        WS-->>Frontend: 결과 페이지로 이동
+
+                        Frontend->>API: GET /api/analysis/{id}/results
+                        API->>DB: 분석 결과 조회
+                        API->>Cache: 결과 캐싱
+                        API-->>Frontend: 분석 결과 반환
+                    </div>
+                </div>
+            </div>
+
+            <!-- 네트워크 보안 -->
+            <div id="security" class="diagram-section">
+                <h2>🛡️ 네트워크 보안</h2>
+                <div class="description">
+                    <h3>다층 보안 아키텍처</h3>
+                    <p>VPC, 서브넷, 보안 그룹, 네트워크 정책을 통한 다층 보안 구조로 시스템을 보호합니다.</p>
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <h4>🌐 Public/Private 분리</h4>
+                        <p>인터넷 접근이 필요한 서비스만 Public 서브넷에 배치</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🛡️ Security Groups</h4>
+                        <p>인스턴스 레벨 방화벽으로 포트 기반 접근 제어</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🔐 Network Policies</h4>
+                        <p>Kubernetes 네트워크 정책으로 Pod 간 통신 제어</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🚪 NAT Gateway</h4>
+                        <p>Private 서브넷의 안전한 아웃바운드 인터넷 접근</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="mermaid">
+                        graph TB
+                        subgraph Internet["🌐 인터넷"]
+                        Users[👥 사용자들]
+                        end
+
+                        subgraph AWS["☁️ AWS VPC"]
+                        subgraph PublicSubnet["🌐 Public Subnet"]
+                        IGW[🚪 Internet Gateway]
+                        ALB[⚖️ Application Load Balancer<br />443 80]
+                        NAT[🚪 NAT Gateway]
+                        end
+
+                        subgraph PrivateSubnet1["🔒 Private Subnet AZ-1a"]
+                        subgraph EKSNodes1["☸️ EKS Worker Nodes"]
+                        WebPods1[📱 Web Tier Pods<br />Port: 3000 80]
+                        AppPods1[🔧 App Tier Pods<br />Port: 8000 8080]
+                        end
+                        end
+
+                        subgraph PrivateSubnet2["🔒 Private Subnet AZ-1b"]
+                        subgraph EKSNodes2["☸️ EKS Worker Nodes"]
+                        DataPods2[💾 Data Tier Pods<br />Port: 9092 6379 5432]
+                        PipelinePods2[🔄 Pipeline Pods<br />Port: 8002 8003]
+                        end
+                        end
+
+                        subgraph DatabaseSubnet["🗄️ Database Subnet"]
+                        RDS[🐘 RDS PostgreSQL<br />Port: 5432]
+                        end
+                        end
+
+                        %% Network flows
+                        Users -->|HTTPS:443| IGW
+                        IGW --> ALB
+                        ALB -->|HTTP:80| WebPods1
+                        WebPods1 -->|HTTP:8000| AppPods1
+                        AppPods1 -->|TCP:9092| DataPods2
+                        AppPods1 -->|TCP:6379| DataPods2
+                        AppPods1 -->|TCP:5432| RDS
+
+                        %% Outbound internet access
+                        AppPods1 --> NAT
+                        DataPods2 --> NAT
+                        PipelinePods2 --> NAT
+                        NAT --> IGW
+
+                        %% Security Groups
+                        subgraph SecurityGroups["🛡️ Security Groups"]
+                        ALBSG[ALB-SG<br />Inbound: 80 443 from 0.0.0.0/0<br />Outbound: 3000 8000 to EKS-SG]
+                        EKSSG[EKS-SG<br />Inbound: 3000 8000 from ALB-SG<br />Inbound: 9092 6379 from
+                        EKS-SG<br />Outbound: All to 0.0.0.0/0]
+                        RDSSG[RDS-SG<br />Inbound: 5432 from EKS-SG<br />Outbound: None]
+                        end
+
+                        %% Network Policies
+                        subgraph NetworkPolicies["🔐 Network Policies"]
+                        WebPolicy[Web Tier Policy<br />Allow: Ingress from ALB<br />Allow: Egress to App Tier]
+                        AppPolicy[App Tier Policy<br />Allow: Ingress from Web Tier<br />Allow: Egress to Data Tier]
+                        DataPolicy[Data Tier Policy<br />Allow: Ingress from App/Pipeline Tier<br />Deny: Direct
+                        external access]
+                        end
+
+                        classDef public fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef private fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef database fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef security fill:#F44336,stroke:#fff,stroke-width:2px,color:#fff
+
+                        class PublicSubnet,IGW,ALB,NAT public
+                        class PrivateSubnet1,PrivateSubnet2,EKSNodes1,EKSNodes2 private
+                        class DatabaseSubnet,RDS database
+                        class SecurityGroups,NetworkPolicies,ALBSG,EKSSG,RDSSG security
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto Scaling -->
+            <div id="scaling" class="diagram-section">
+                <h2>📈 Auto Scaling 전략</h2>
+                <div class="description">
+                    <h3>다차원 자동 확장</h3>
+                    <p>HPA, VPA, Cluster Autoscaler, 커스텀 스케일링을 조합하여 최적의 리소스 활용과 비용 효율성을 달성합니다.</p>
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <h4>🔄 HPA (Horizontal Pod Autoscaler)</h4>
+                        <p>CPU/Memory 사용률 기반 Pod 수 자동 조절</p>
+                    </div>
+                    <div class="feature">
+                        <h4>📊 VPA (Vertical Pod Autoscaler)</h4>
+                        <p>Pod의 리소스 요청량 자동 최적화</p>
+                    </div>
+                    <div class="feature">
+                        <h4>🏗️ Cluster Autoscaler</h4>
+                        <p>워크로드에 따른 노드 자동 확장/축소</p>
+                    </div>
+                    <div class="feature">
+                        <h4>⚙️ Custom Scaling</h4>
+                        <p>Kafka 큐 깊이, 시간대별 예측 스케일링</p>
+                    </div>
+                </div>
+                <div class="diagram-container">
+                    <div class="mermaid">
+                        graph TB
+                        subgraph Scaling["📈 Auto Scaling 전략"]
+                        subgraph HPA["🔄 Horizontal Pod Autoscaler"]
+                        BackendHPA[🖥️ Backend API HPA<br />Min: 3 Max: 20<br />CPU: 70% Memory: 80%]
+                        WebSocketHPA[🔌 WebSocket HPA<br />Min: 2 Max: 10<br />CPU: 60% Memory: 70%]
+                        CrawlerHPA[🕷️ Crawler HPA<br />Min: 2 Max: 8<br />CPU: 80% Memory: 85%]
+                        AnalysisHPA[🧠 Analysis HPA<br />Min: 1 Max: 5<br />GPU: 70% Memory: 80%]
+                        end
+
+                        subgraph VPA["📊 Vertical Pod Autoscaler"]
+                        BackendVPA[🖥️ Backend VPA<br />CPU: 500m-2000m<br />Memory: 512Mi-2Gi]
+                        KafkaVPA[📨 Kafka VPA<br />CPU: 1000m-4000m<br />Memory: 1Gi-4Gi]
+                        RedisVPA[🔴 Redis VPA<br />CPU: 250m-1000m<br />Memory: 256Mi-1Gi]
+                        end
+
+                        subgraph ClusterAS["🏗️ Cluster Autoscaler"]
+                        GeneralAS[💻 General Nodes<br />Min: 2 Max: 10<br />Scale on: Pod pending]
+                        GPUAS[🎮 GPU Nodes<br />Min: 0 Max: 5<br />Scale on: GPU requests]
+                        SpotAS[💰 Spot Nodes<br />Min: 1 Max: 15<br />Scale on: Batch workloads]
+                        end
+
+                        subgraph CustomScaling["⚙️ Custom Scaling"]
+                        KafkaScaling[📨 Kafka Consumer Lag<br />Scale crawlers based on<br />message queue depth]
+                        TimeBasedScaling[⏰ Time-based Scaling<br />Scale up during peak hours<br />8AM-10PM KST]
+                        PredictiveScaling[🔮 Predictive Scaling<br />ML-based scaling<br />based on historical patterns]
+                        end
+                        end
+
+                        %% Scaling triggers
+                        BackendHPA -->|High CPU/Memory| GeneralAS
+                        AnalysisHPA -->|GPU requests| GPUAS
+                        CrawlerHPA -->|Batch jobs| SpotAS
+
+                        KafkaScaling -->|Queue depth > 1000| CrawlerHPA
+                        TimeBasedScaling -->|Peak hours| BackendHPA
+                        PredictiveScaling -->|Traffic prediction| GeneralAS
+
+                        classDef hpa fill:#4CAF50,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef vpa fill:#2196F3,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef cluster fill:#FF9800,stroke:#fff,stroke-width:2px,color:#fff
+                        classDef custom fill:#9C27B0,stroke:#fff,stroke-width:2px,color:#fff
+
+                        class BackendHPA,WebSocketHPA,CrawlerHPA,AnalysisHPA hpa
+                        class BackendVPA,KafkaVPA,RedisVPA vpa
+                        class GeneralAS,GPUAS,SpotAS cluster
+                        class KafkaScaling,TimeBasedScaling,PredictiveScaling custom
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mermaid 초기화
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: 16,
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10,
+                actorMargin: 50,
+                width: 180,
+                height: 80,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35,
+                mirrorActors: true,
+                bottomMarginAdj: 1,
+                useMaxWidth: false,
+                rightAngles: false,
+                showSequenceNumbers: false
+            },
+            gantt: {
+                useMaxWidth: false
+            },
+            journey: {
+                useMaxWidth: false
+            }
+        });
+
+        // 다이어그램 전환 함수
+        function showDiagram(diagramId) {
+            // 모든 섹션 숨기기
+            const sections = document.querySelectorAll('.diagram-section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // 모든 버튼 비활성화
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 선택된 섹션 표시
+            const targetSection = document.getElementById(diagramId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // 선택된 버튼 활성화
+            const targetButton = event.target;
+            targetButton.classList.add('active');
+
+            // 페이지 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 페이지 로드 완료 후 Mermaid 다시 렌더링
+        window.addEventListener('load', function () {
+            setTimeout(() => {
+                mermaid.init();
+            }, 100);
+        });
+
+        // 반응형 처리
+        window.addEventListener('resize', function () {
+            // 다이어그램 크기 조정
+            const diagrams = document.querySelectorAll('.mermaid');
+            diagrams.forEach(diagram => {
+                if (diagram.getAttribute('data-processed') === 'true') {
+                    // 이미 처리된 다이어그램 재렌더링
+                    const svg = diagram.querySelector('svg');
+                    if (svg) {
+                        svg.style.maxWidth = '100%';
+                        svg.style.height = 'auto';
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

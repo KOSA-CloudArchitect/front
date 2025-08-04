@@ -11,11 +11,11 @@ import AnalysisPage from "./pages/AnalysisPage";
 import { AnalysisResultPage } from "./pages/AnalysisResultPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
-import { useAuthActions } from "./stores/authStore";
+import { useAuthCheckStatus } from "./stores/authStore";
 import { setupGlobalErrorHandler } from "./utils/errorUtils";
 
 export default function App(): JSX.Element {
-  const { checkAuthStatus } = useAuthActions();
+  const checkAuthStatus = useAuthCheckStatus();
 
   useEffect(() => {
     // 전역 에러 핸들러 설정
