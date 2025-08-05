@@ -171,7 +171,7 @@ class AuthService {
       });
 
       // 비밀번호 검증
-      const isValidPassword = await user.validatePassword(password);
+      const isValidPassword = await User.comparePassword(password, user.password);
       if (!isValidPassword) {
         await this.recordFailedAttempt(email);
         throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
@@ -209,7 +209,7 @@ class AuthService {
         throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
       }
 
-      const isValidPassword = await user.validatePassword(password);
+      const isValidPassword = await User.comparePassword(password, user.password);
       if (!isValidPassword) {
         throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
       }

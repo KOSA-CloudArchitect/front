@@ -11,6 +11,55 @@ const prisma = new PrismaClient();
 
 class User {
   /**
+   * User 생성자
+   * @param {Object} userData - 사용자 데이터
+   */
+  constructor(userData = {}) {
+    this.id = userData.id;
+    this.email = userData.email;
+    this.password = userData.password;
+    this.role = userData.role || 'user';
+    this.isActive = userData.isActive !== undefined ? userData.isActive : true;
+    this.createdAt = userData.createdAt || new Date();
+    this.updatedAt = userData.updatedAt || new Date();
+  }
+
+  /**
+   * 안전한 사용자 객체 반환 (비밀번호 제외)
+   * @returns {Object} 비밀번호가 제거된 사용자 정보
+   */
+  toSafeObject() {
+    const { password, ...safeUser } = this;
+    return safeUser;
+  }
+
+  /**
+   * JWT 토큰 생성
+   * @returns {Object} 액세스 토큰과 리프레시 토큰
+   */
+  generateTokens() {
+    const payload = {
+      id: this.id,
+      email: this.email,
+      role: this.role
+    };
+
+    const accessToken = jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: this.id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  /**
    * 사용자 생성
    * @param {Object} userData - 사용자 데이터
    * @returns {Promise<Object>} 생성된 사용자 정보
@@ -89,40 +138,70 @@ class User {
   }
 
   /**
-   * 비밀번호 검증
+   * 비밀번호 비교 검증
    * @param {string} plainPassword - 평문 비밀번호
    * @param {string} hashedPassword - 해시된 비밀번호
    * @returns {Promise<boolean>} 검증 결과
    */
-  static async validatePassword(plainPassword, hashedPassword) {
+  static async comparePassword(plainPassword, hashedPassword) {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
 
   /**
-   * JWT 토큰 생성
-   * @param {Object} user - 사용자 정보
-   * @returns {Object} 액세스 토큰과 리프레시 토큰
+   * JWT 액세스 토큰 검증
+   * @param {string} token - JWT 토큰
+   * @returns {Object} 디코딩된 토큰 정보
    */
-  static generateTokens(user) {
-    const payload = {
-      id: user.id,
-      email: user.email,
-      role: user.role
+  static verifyAccessToken(token) {
+    try {
+      return jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('expired');
+      }
+      throw new Error('invalid');
+    }
+  }
+
+  /**
+   * 이메일 유효성 검증
+   * @param {string} email - 이메일
+   * @returns {boolean} 유효성 여부
+   */
+  static validateEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * 비밀번호 유효성 검증
+   * @param {string} password - 비밀번호
+   * @returns {Object} 검증 결과
+   */
+  static validatePassword(password) {
+    const requirements = {
+      minLength: password.length >= 8,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
     };
 
-    const accessToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-    );
+    const isValid = Object.values(requirements).every(req => req);
 
-    const refreshToken = jwt.sign(
-      { id: user.id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
-    );
+    return {
+      isValid,
+      requirements
+    };
+  }
 
-    return { accessToken, refreshToken };
+  /**
+   * 비밀번호 해싱
+   * @param {string} password - 평문 비밀번호
+   * @returns {Promise<string>} 해시된 비밀번호
+   */
+  static async hashPassword(password) {
+    return await bcrypt.hash(password, 12);
   }
 
   /**

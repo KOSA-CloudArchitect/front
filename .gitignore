@@ -127,3 +127,17 @@ Thumbs.db
 # Lock files (choose one)
 package-lock.json
 yarn.lock
+
+# Airflow logs and temporary files
+airflow/logs/
+airflow/plugins/__pycache__/
+
+# Docker volumes
+postgres_data/
+redis_data/
+kafka_data/
+zookeeper_data/
+airflow_postgres_data/
+
+# Monitoring files
+docs/monitoring-strategy.md
