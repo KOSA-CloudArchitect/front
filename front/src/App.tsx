@@ -9,10 +9,12 @@ import AdminPage from "./pages/AdminPage";
 import SearchListPage from "./pages/SearchListPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import { AnalysisResultPage } from "./pages/AnalysisResultPage";
+import RealtimeTestPage from "./pages/RealtimeTestPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 import { useAuthCheckStatus } from "./stores/authStore";
 import { setupGlobalErrorHandler } from "./utils/errorUtils";
+import "./utils/realtimeTestUtils"; // 개발용 테스트 유틸리티
 
 export default function App(): JSX.Element {
   const checkAuthStatus = useAuthCheckStatus();
@@ -66,6 +68,12 @@ export default function App(): JSX.Element {
                 <AnalysisResultPage />
               </ProtectedRoute>
             } 
+          />
+          
+          {/* 테스트 페이지 (개발용) */}
+          <Route 
+            path="/test/realtime" 
+            element={<RealtimeTestPage />} 
           />
           
           {/* 관리자 전용 라우트 */}
