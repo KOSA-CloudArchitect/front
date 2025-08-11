@@ -26,6 +26,7 @@ const kafkaRouter = require('./routes/kafka');
 const websocketRouter = require('./routes/websocket');
 const apiInfoRouter = require('./routes/api-info');
 const cacheRouter = require('./routes/cache');
+const interestsRouter = require('./routes/interests');
 
 // Kafka 서비스는 별도 모듈로 분리됨
 
@@ -192,6 +193,10 @@ try {
   logger.info('🛣️ /api/cache 라우트 등록 시도 중...');
   app.use('/api/cache', cacheRouter);
   logger.info('✅ /api/cache 라우트 등록 성공');
+
+  logger.info('🛣️ /api/interests 라우트 등록 시도 중...');
+  app.use('/api/interests', interestsRouter);
+  logger.info('✅ /api/interests 라우트 등록 성공');
 } catch (error) {
   logger.error('❌ 라우터 등록 중 오류 발생:', error);
   throw error;
