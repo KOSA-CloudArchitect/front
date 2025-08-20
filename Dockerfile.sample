@@ -1,0 +1,7 @@
+FROM node:18-slim
+WORKDIR /usr/src/app
+COPY sample_package.json ./
+RUN npm install
+COPY sample_server.js ./
+EXPOSE 8080
+CMD [ "node", "sample_server.js" ]
